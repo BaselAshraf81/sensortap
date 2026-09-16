@@ -4,9 +4,8 @@ One registry. Every sensor your computer has.
 
 `sensortap` discovers every sensor a machine can reach, camera, microphone,
 motion, battery, radios, and (on Windows, via a bundled helper) hardware
-telemetry, and reads every one of them through the same small API. It's
-infrastructure, not an app: it doesn't build a finished sensor toy for you,
-it makes building your own fast.
+telemetry, and reads every one of them through the same small API. It's the
+layer you build a sensor toy on top of, not the toy itself.
 
 **[sensortap.baselashraf.com](https://sensortap.baselashraf.com)** · Windows
 today, Linux planned · Free and open source, [MIT](LICENSE)
@@ -141,7 +140,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-190 tests, none requiring physical sensor hardware in the default run. See
+193 tests, none requiring physical sensor hardware in the default run. See
 [docs/contributing/adapter-guide.md](docs/contributing/adapter-guide.md) for
 writing a new adapter and [docs/schema.md](docs/schema.md) for the schema
 reference, generated straight from the code.

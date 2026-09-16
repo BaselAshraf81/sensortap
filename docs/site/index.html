@@ -210,10 +210,9 @@
     <div class="bay__wide">
       <h2>That transcript is real</h2>
       <p class="statement">
-        86 sensors. 16 kinds. 10 of 10 backends loaded, zero failing. Captured
-        from an ordinary laptop, a Dell G3 3779, by running the actual CLI.
-        Not written from memory, not a mockup, and re-run right before this
-        page was published.
+        86 sensors. 16 kinds. 10 of 10 backends loaded, zero failing. That's
+        the real output of running the CLI on an ordinary laptop, a Dell G3
+        3779, re-run right before this page was published.
       </p>
       <p>
         Half of it is the obvious hardware: a camera, a microphone, a
@@ -237,12 +236,11 @@
         A camera adapter and a hardware-telemetry adapter have nothing in
         common as code: one talks to WinRT, the other spawns a bundled
         .NET helper and reads LibreHardwareMonitor over a local pipe.
-        sensortap doesn't pretend otherwise. Each sensor family is one
-        adapter, one file, registered through a normal Python entry point.
-        The registry's job is narrow: load every adapter it finds, run
-        discovery concurrently with a shared timeout so one slow backend
-        can't stall the rest, de-duplicate and validate what comes back,
-        and hand you one flat, typed list.
+        Each sensor family is one adapter, one file, registered through a
+        normal Python entry point. The registry's job is narrow: load every
+        adapter it finds, run discovery concurrently with a shared timeout
+        so one slow backend can't stall the rest, de-duplicate and
+        validate what comes back, and hand you one flat, typed list.
       </p>
       <p>
         Every sensor, regardless of source, reports the same shape: a
@@ -283,8 +281,8 @@
       </svg>
       <figcaption>
         Each adapter owns one sensor family and one backend. The registry
-        never imports an adapter's internals, it only calls the two
-        methods every adapter promises: discover, and read.
+        never imports an adapter's internals; it only calls discover() and
+        read(), the two methods every adapter has to implement.
       </figcaption>
     </figure>
   </section>
@@ -372,8 +370,8 @@ reading = sensortap.read(<span class="str">"accel.winrt.0"</span>)
     <div class="bay__measure">
       <h2>What's real today, what isn't yet</h2>
       <p>
-        A young, one-person project, stated plainly. No adoption numbers
-        exist to quote, so none are invented.
+        A young, one-person project. No adoption numbers exist to quote,
+        so none are invented here.
       </p>
     </div>
 
@@ -408,11 +406,11 @@ reading = sensortap.read(<span class="str">"accel.winrt.0"</span>)
 
       <dt>A sensor can be there and still say absent</dt>
       <dd>
-        Several rows in the transcript above read <code>absent</code>.
-        That's honest, not a bug. A WinRT sensor class the operating
-        system doesn't expose reports absent rather than guessing whether
-        the physical chip exists underneath it. Reporting a wrong number
-        is worse than reporting none.
+        Several rows in the transcript above read <code>absent</code>. A
+        WinRT sensor class the operating system doesn't expose reports
+        absent rather than guessing whether the physical chip exists
+        underneath it. Reporting a wrong number is worse than reporting
+        none.
       </dd>
     </dl>
   </section>
