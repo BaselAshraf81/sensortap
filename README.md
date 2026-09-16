@@ -118,6 +118,39 @@ Nine adapters ship today, all against real hardware:
 | `win_touchpad` | Touch-pointer presence, contact count, capacitive image (consent-gated) |
 | `hwmon_bridge` | CPU/GPU/board temperature, fan, voltage, current, power, clock, load, via a bundled .NET helper wrapping LibreHardwareMonitor. Board/Super-IO/EC sensors behind `--include-motherboard` |
 
+## Documentation
+
+**[docs/REFERENCE.md](docs/REFERENCE.md)** is the full reference: every CLI
+command, flag, and exit code; the whole Python API; every schema field and
+enum value; the sensor-id grammar; the kind and unit vocabularies; the consent
+and streaming models; the complete error table; and the adapter interface for
+contributors.
+
+It is one self-contained markdown file with no external includes, so you can
+paste the whole thing into an LLM context window and ask questions about
+sensortap without the model guessing at the API:
+
+```sh
+# copy the entire reference to the clipboard (Windows)
+Get-Content docs/REFERENCE.md -Raw | Set-Clipboard
+
+# macOS
+pbcopy < docs/REFERENCE.md
+
+# Linux (X11 / Wayland)
+xclip -selection clipboard < docs/REFERENCE.md
+wl-copy < docs/REFERENCE.md
+```
+
+It is also served as plain text at
+**[baselashraf.com/sensortap/reference.md](https://baselashraf.com/sensortap/reference.md)**,
+so an agent with web access can fetch it directly.
+
+Other docs: [privacy.md](docs/privacy.md) for the consent model in prose,
+[schema.md](docs/schema.md) for the schema reference generated from the code,
+and [contributing/adapter-guide.md](docs/contributing/adapter-guide.md) for the
+adapter walkthrough.
+
 ## Adding a sensor
 
 One sensor family is one file, registered through a Python entry point, no
