@@ -212,6 +212,44 @@ def test_t_mono_is_clamped_to_previous_plus_one_tick_when_non_increasing():
     assert r3.t_mono > r2.t_mono  # clamped from 3.0 forward again
 
 
+def test_list_sensors_routes_dispatch_when_source_qualifier_differs_from_adapter_id():
+    """A record's `source` tuple is each adapter's own Sensor_Id
+    qualifier segment, which is not guaranteed to equal `meta.adapter_id`
+    (e.g. `hwmon_bridge` reports `source=("hwmon",)`). Before this fix,
+    `list_sensors()`'s owner lookup matched `source` directly against
+    `adapter_id`, so any adapter using a shorter qualifier never got an
+    entry in `_sensor_owner` -- read()/stream() on such a sensor always
+    raised UnknownSensorError, real live case found: no sensor from a
+    C# helper hardware-monitoring adapter (~65 sensors on real hardware)
+    was ever readable despite list_sensors() enumerating it correctly."""
+
+    class ShortQualifierAdapter(FakeAdapter):
+        meta: ClassVar[AdapterMeta] = AdapterMeta(
+            adapter_id="short_qualifier_adapter",
+            interface_version="1.0",
+            supported_platforms=frozenset({"win32", "linux"}),
+            read_only_declared=True,
+        )
+
+    from dataclasses import replace
+
+    info = replace(_make_info("temp.short.0"), source=("short",))
+    adapter = ShortQualifierAdapter(sensors=[info])
+
+    registry = Registry.__new__(Registry)
+    Registry.__init__(registry, discovery_timeout_ms=2000)
+    registry._loaded_adapters = [
+        LoadedAdapter(entry_point_name="short", distribution_name=None, instance=adapter)
+    ]
+
+    sensors = registry.list_sensors()
+    assert [s.id for s in sensors] == ["temp.short.0"]
+
+    reading = registry.read("temp.short.0")
+    assert reading.id == "temp.short.0"
+    assert adapter.read_calls == ["temp.short.0"]
+
+
 def test_stream_raises_unsupported_operation_when_adapter_lacks_open_stream():
     info = _make_info("temp.fake.0")
     other_info = _make_info("temp.fake.1")

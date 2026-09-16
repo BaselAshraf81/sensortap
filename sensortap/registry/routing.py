@@ -14,6 +14,7 @@ every platform by construction.
 from __future__ import annotations
 
 import atexit
+import re
 import threading
 from time import monotonic, time
 from typing import Any, Callable
@@ -188,6 +189,30 @@ class Registry:
                 if adapter_id in owner_by_adapter_id:
                     owner = owner_by_adapter_id[adapter_id]
                     break
+            if owner is None:
+                # `source` is each adapter's own qualifier string, which
+                # is not guaranteed to equal its `adapter_id` (e.g.
+                # hwmon_bridge reports source=("hwmon",) while its
+                # adapter_id is "hwmon_bridge"). Fall back to the
+                # raw_results this record actually came from: the first
+                # loaded adapter whose discover() output contains this
+                # record's id is the real owner for dispatch. A record
+                # that went through the collision-suffix step (Req 3.8)
+                # has an id that no longer matches any raw record
+                # verbatim, so also try stripping a trailing `-<digits>`
+                # disambiguation suffix before giving up.
+                candidate_raw_ids = {sensor.id}
+                stripped = re.sub(r"-\d+$", "", sensor.id)
+                if stripped != sensor.id:
+                    candidate_raw_ids.add(stripped)
+                for loaded in self._loaded_adapters:
+                    adapter_id = loaded.instance.meta.adapter_id
+                    if any(
+                        r.id in candidate_raw_ids
+                        for r in raw_results.get(adapter_id, [])
+                    ):
+                        owner = loaded.instance
+                        break
             if owner is not None:
                 new_sensor_owner[sensor.id] = owner
 

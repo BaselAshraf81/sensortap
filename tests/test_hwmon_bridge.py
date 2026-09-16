@@ -195,6 +195,33 @@ def test_read_returns_unavailable_on_helper_failure_response() -> None:
     assert reading.values == ()
 
 
+def test_read_accepts_a_collision_disambiguation_suffix() -> None:
+    """When registry.dedup's resolve_collisions() (Req 3.8) appends a
+    `-<digit>` suffix to disambiguate two distinct sensors that hashed to
+    the same candidate id, the id the caller ultimately holds no longer
+    matches any key this adapter's discover() stored verbatim. read()
+    must still resolve it by stripping the suffix rather than raising
+    KeyError -- this previously crashed for any hwmon sensor unlucky
+    enough to collide (found live: two `load` sensors on the same
+    machine both hashed to `load.hwmon.52359ca7722c7595`)."""
+
+    fake = _FakeHelperClient(state="running")
+    temp = _record(value=55.5)
+    fake.set_list_response(HelperResponse(ok=True, sensors=[temp], error=None))
+
+    adapter = WindowsHardwareMonitorAdapter(helper_client=fake)
+    (info,) = adapter.discover()
+
+    suffixed_id = f"{info.id}-0"
+    fake.set_read_response(
+        HelperResponse(ok=True, sensors=[_record(value=55.5)], error=None)
+    )
+    reading = adapter.read(suffixed_id)
+
+    assert reading.status is Status.OK
+    assert reading.id == suffixed_id
+
+
 def test_teardown_calls_helper_shutdown() -> None:
     fake = _FakeHelperClient(state="running")
     adapter = WindowsHardwareMonitorAdapter(helper_client=fake)

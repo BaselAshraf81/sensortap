@@ -121,6 +121,7 @@ exception, or an `ok=False`/missing-value response, straight to
 
 from __future__ import annotations
 
+import re
 import time
 from typing import TYPE_CHECKING, ClassVar
 
@@ -366,6 +367,16 @@ class WindowsHardwareMonitorAdapter:
             return _unavailable_reading(sensor_id, seq)
 
         helper_id = self._helper_id_by_sensor_id.get(sensor_id)
+        if helper_id is None:
+            # The dedup pipeline (registry/ids.py's resolve_collisions,
+            # Req 3.8) appends a `-<digit>` disambiguation suffix to the
+            # instance segment when two distinct sensors from this same
+            # adapter hash to one candidate id (e.g. two `load` sensors).
+            # The id this adapter minted in discover() and stored as the
+            # map key is the pre-suffix one, so a suffixed id needs the
+            # suffix stripped before the lookup.
+            unsuffixed = re.sub(r"-\d+$", "", sensor_id)
+            helper_id = self._helper_id_by_sensor_id.get(unsuffixed)
         if helper_id is None:
             raise KeyError(
                 f"unknown sensor id for WindowsHardwareMonitorAdapter: {sensor_id!r}"

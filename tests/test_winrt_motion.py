@@ -70,6 +70,27 @@ def test_configure_rate_unknown_sensor_id_raises_key_error() -> None:
         adapter.configure_rate("nonexistent.sensor.id", 50.0)
 
 
+def test_read_on_absent_sensor_returns_unavailable_not_key_error() -> None:
+    """A sensor discover() already reported as `absent` must read as
+    `Status.UNAVAILABLE`, matching winrt_light.py/winrt_orientation.py's
+    established pattern -- not raise KeyError, which previously escaped
+    all the way to the CLI as an unhandled exit code 1 instead of the
+    correct exit code 4 (Req 4.6's "adapter errors propagate unchanged"
+    still holds; the point is that "no live instance" is not an error,
+    it is the normal absent-sensor case).
+    """
+    from sensortap.schema.enums import Status
+
+    adapter = WindowsMotionAdapter()
+    records = adapter.discover()
+
+    for record in records:
+        if record.availability is Availability.ABSENT:
+            reading = adapter.read(record.id)
+            assert reading.status is Status.UNAVAILABLE
+            assert reading.values == ()
+
+
 def test_configure_rate_on_absent_sensor_raises_key_error() -> None:
     """On this machine the three WinRT classes report no live instance,
     so `configure_rate` against the real (absent) accel id must raise

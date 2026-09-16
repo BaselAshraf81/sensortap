@@ -9,4 +9,5 @@ helper_src/bin/
 helper_src/obj/
 helper_src/publish/
 sensortap/adapters/windows/helper/bin/*.exe
+sensortap/adapters/windows/helper/bin/*.sys
 .vs/

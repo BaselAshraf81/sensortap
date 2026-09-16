@@ -50,6 +50,7 @@ round trip.
 
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 from typing import ClassVar
 
@@ -192,7 +193,12 @@ class WindowsMotionAdapter:
         if sensor_id == self._accel_id:
             sensor = self._accel_sensor
             if sensor is None:
-                raise KeyError(f"sensor {sensor_id!r} has no live WinRT instance")
+                # No physical accelerometer on this machine (Req 13.2's
+                # "absent" case) -- report unavailable rather than
+                # raising, matching winrt_light.py/winrt_orientation.py's
+                # established pattern for a sensor discover() already
+                # reported as absent.
+                return _unavailable_reading(sensor_id)
 
             def _read() -> Reading:
                 import time
@@ -216,7 +222,7 @@ class WindowsMotionAdapter:
         if sensor_id == self._gyro_id:
             sensor = self._gyro_sensor
             if sensor is None:
-                raise KeyError(f"sensor {sensor_id!r} has no live WinRT instance")
+                return _unavailable_reading(sensor_id)
 
             def _read() -> Reading:
                 import time
@@ -240,7 +246,7 @@ class WindowsMotionAdapter:
         if sensor_id == self._magn_id:
             sensor = self._magn_sensor
             if sensor is None:
-                raise KeyError(f"sensor {sensor_id!r} has no live WinRT instance")
+                return _unavailable_reading(sensor_id)
 
             def _read() -> Reading:
                 import time
@@ -292,3 +298,14 @@ class WindowsMotionAdapter:
         sensor.report_interval = requested_interval_ms
         applied_interval_ms = sensor.report_interval
         return 1000.0 / applied_interval_ms
+
+
+def _unavailable_reading(sensor_id: str) -> Reading:
+    return Reading(
+        id=sensor_id,
+        t_mono=time.monotonic(),
+        t_wall=time.time(),
+        values=(),
+        seq=0,
+        status=Status.UNAVAILABLE,
+    )
