@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>sensortap documentation: CLI, Python API, schema, adapters</title>
+<meta name="description" content="Complete sensortap reference: every CLI command and flag, the Python API, schema fields and enums, sensor-id grammar, consent and streaming models, error and exit-code tables, and the adapter interface.">
+<link rel="canonical" href="https://baselashraf.com/sensortap/docs/">
+<meta name="author" content="Basel Ashraf">
+<meta name="theme-color" content="#0b0b0b">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Basel Ashraf">
+<meta property="og:title" content="sensortap documentation">
+<meta property="og:description" content="Every CLI command and flag, the Python API, schema fields and enums, the consent and streaming models, and the adapter interface.">
+<meta property="og:url" content="https://baselashraf.com/sensortap/docs/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:creator" content="@BaselAshraf81">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "sensortap documentation",
+  "url": "https://baselashraf.com/sensortap/docs/",
+  "description": "Complete reference for the sensortap CLI, Python API, schema, and adapter interface.",
+  "author": { "@type": "Person", "name": "Basel Ashraf", "url": "https://baselashraf.com/" },
+  "about": { "@id": "https://baselashraf.com/#sensortap" },
+  "isPartOf": { "@type": "WebSite", "url": "https://baselashraf.com/" }
+}
+</script>
+
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GM71X3G33E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag("js", new Date());
+  gtag("config", "G-GM71X3G33E");
+</script>
+</head>
+<body>
+
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="bar">
+  <a class="bar__brand" href="../"><b>sensortap</b> <span class="bar__tag">Docs</span></a>
+
+  <div class="bar__spacer"></div>
+
+  <div class="search" role="search">
+    <input class="search__input" id="search" type="search" autocomplete="off"
+           placeholder="Search the reference" aria-label="Search the documentation"
+           aria-controls="search-results" aria-expanded="false">
+    <span class="search__kbd">/</span>
+    <div class="search__results" id="search-results" role="listbox" hidden></div>
+  </div>
+
+  <ul class="bar__links">
+    <li><a class="bar__link" href="../">Overview</a></li>
+    <li>
+      <a class="bar__link" href="https://github.com/BaselAshraf81/sensortap" rel="noopener">
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 .8a7.2 7.2 0 0 0-2.28 14.03c.36.07.49-.16.49-.35v-1.24c-2 .44-2.42-.85-2.42-.85-.33-.83-.8-1.05-.8-1.05-.65-.45.05-.44.05-.44.72.05 1.1.74 1.1.74.64 1.1 1.68.78 2.09.6.06-.47.25-.79.46-.97-1.6-.18-3.28-.8-3.28-3.56 0-.79.28-1.43.74-1.94-.07-.18-.32-.91.07-1.9 0 0 .6-.19 1.97.74a6.85 6.85 0 0 1 3.59 0c1.37-.93 1.97-.74 1.97-.74.39.99.14 1.72.07 1.9.46.51.74 1.15.74 1.94 0 2.77-1.69 3.38-3.3 3.56.26.22.49.66.49 1.33v1.97c0 .19.13.42.5.35A7.2 7.2 0 0 0 8 .8Z"/></svg>
+        GitHub
+      </a>
+    </li>
+  </ul>
+</header>
+
+<details class="navdrawer">
+  <summary>
+    <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg>
+    Contents
+  </summary>
+  <div class="navdrawer__body" id="drawer-nav"></div>
+</details>
+
+<div class="shell">
+
+  <nav class="nav" id="sidebar" aria-label="Documentation sections">
+    <div class="nav__group">
+      <p class="nav__title">Getting started</p>
+      <ul class="nav__list">
+        <li><a class="nav__link" href="#overview">Overview</a></li>
+        <li><a class="nav__link" href="#install">Install</a></li>
+        <li><a class="nav__link" href="#concepts">Concepts</a></li>
+        <li><a class="nav__link" href="#sensor-ids">Sensor ids</a></li>
+      </ul>
+    </div>
+    <div class="nav__group">
+      <p class="nav__title">Interfaces</p>
+      <ul class="nav__list">
+        <li><a class="nav__link" href="#cli">CLI</a></li>
+        <li><a class="nav__link" href="#env">Environment variables</a></li>
+        <li><a class="nav__link" href="#python-api">Python API</a></li>
+      </ul>
+    </div>
+    <div class="nav__group">
+      <p class="nav__title">Data model</p>
+      <ul class="nav__list">
+        <li><a class="nav__link" href="#schema">Schema types</a></li>
+        <li><a class="nav__link" href="#vocabularies">Vocabularies</a></li>
+        <li><a class="nav__link" href="#backend-status">Backend status</a></li>
+        <li><a class="nav__link" href="#errors">Errors and exit codes</a></li>
+      </ul>
+    </div>
+    <div class="nav__group">
+      <p class="nav__title">Behaviour</p>
+      <ul class="nav__list">
+        <li><a class="nav__link" href="#consent">Consent</a></li>
+        <li><a class="nav__link" href="#streaming">Streaming</a></li>
+        <li><a class="nav__link" href="#guarantees">Guarantees and limits</a></li>
+      </ul>
+    </div>
+    <div class="nav__group">
+      <p class="nav__title">Extending</p>
+      <ul class="nav__list">
+        <li><a class="nav__link" href="#adapters">Shipped adapters</a></li>
+        <li><a class="nav__link" href="#writing-adapters">Writing an adapter</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="doc" id="content">
+    <div class="doc__inner">
+
+      <p class="doc__eyebrow">Reference</p>
+      <h1>sensortap documentation</h1>
+      <p class="doc__lede">
+        Every CLI command and flag, the whole Python API, every schema field and enum value,
+        the sensor&#8209;id grammar, the consent and streaming models, the complete error table,
+        and the adapter interface. Every value here is taken from the shipped source, not from
+        an example.
+      </p>
+
+      <div class="ai">
+        <p class="ai__text">
+          <b>Reading this with an AI?</b> Copy the whole reference as one self-contained
+          markdown file, no external includes.
+        </p>
+        <button class="btn btn--primary" type="button" id="copy-md" data-src="../reference.md">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5v5.5A1.5 1.5 0 0 0 3.5 10.5h2"/></svg>
+          Copy page for AI
+        </button>
+        <a class="btn" href="../reference.md">View raw markdown</a>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th>Schema version</th><td><code>1.0</code></td></tr>
+            <tr><th>Adapter interface</th><td><code>1.0</code></td></tr>
+            <tr><th>Platform</th><td>Windows 10 or later. Linux adapters are designed but not built.</td></tr>
+            <tr><th>License</th><td>MIT</td></tr>
+            <tr><th>Repository</th><td><a href="https://github.com/BaselAshraf81/sensortap" rel="noopener">github.com/BaselAshraf81/sensortap</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================= OVERVIEW ================= -->
+      <h2 id="overview">Overview<a class="anchor" href="#overview" aria-label="Link to Overview">#</a></h2>
+
+      <p>
+        sensortap discovers every sensor a computer can reach and exposes raw readings through
+        one API. One registry loads many independent adapters; no adapter knows about any other.
+        Every sensor, whatever its backend, reports the same shape: a stable id, a
+        <code>kind</code> from a closed vocabulary, a unit, a sampling rate, and whether it is
+        currently reachable.
+      </p>
+      <p>
+        Nothing in the core branches on the operating system. All platform variance lives inside
+        adapters, so the public surface is identical everywhere.
+      </p>
+
+      <!-- ================= INSTALL ================= -->
+      <h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to Install">#</a></h2>
+
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> pip install sensortap</code></pre>
+      </div>
+
+      <p>
+        Covers camera, microphone, motion, orientation, light, battery, radio, and touchpad
+        sensors, with no extra downloads.
+      </p>
+      <p>
+        Hardware-monitor sensors (per-core CPU load, temperatures, voltages, power, clock
+        speeds) need the optional extra, which pulls in a bundled self-contained .NET helper of
+        a few dozen megabytes:
+      </p>
+
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> pip install "sensortap[hwmon]"</code></pre>
+      </div>
+
+      <h3 id="install-dev">Development install<a class="anchor" href="#install-dev" aria-label="Link to Development install">#</a></h3>
+
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> pip install -e ".[dev]"
+<span class="tok-p">$</span> pytest</code></pre>
+      </div>
+
+      <!-- ================= CONCEPTS ================= -->
+      <h2 id="concepts">Concepts<a class="anchor" href="#concepts" aria-label="Link to Concepts">#</a></h2>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><b>Registry</b></td><td>The single stateful orchestrator. Loads adapters, runs discovery, de-duplicates, routes reads.</td></tr>
+            <tr><td><b>Adapter</b></td><td>One backend plug-in owning one sensor family. Knows nothing about any other adapter.</td></tr>
+            <tr><td><b>Backend</b></td><td>The platform API or process an adapter talks to (WinRT, a .NET helper, sysfs).</td></tr>
+            <tr><td><b>Helper process</b></td><td>A separate child process an adapter may spawn. Used by <code>hwmon_bridge</code>.</td></tr>
+            <tr><td><b>Sensor id</b></td><td>The stable, three-segment string identifying one sensor.</td></tr>
+            <tr><td><b>Kind</b></td><td>A member of a closed 24-value vocabulary describing what a sensor measures.</td></tr>
+            <tr><td><b>Consent grant</b></td><td>An in-memory, scoped authorization to read one privacy-sensitive sensor.</td></tr>
+            <tr><td><b>Block</b></td><td>One buffered chunk of samples from a <code>buffer</code>-dtype sensor, delivered through a stream.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================= SENSOR IDS ================= -->
+      <h2 id="sensor-ids">Sensor ids<a class="anchor" href="#sensor-ids" aria-label="Link to Sensor ids">#</a></h2>
+
+      <p>Exactly three dot-separated segments:</p>
+
+      <div class="code">
+        <pre><code>&lt;kind&gt;.&lt;source-qualifier&gt;.&lt;instance-qualifier&gt;
+
+temp.hwmon.2aed4545974396bc
+accel.winrt.0
+radio-signal.win-radio.0</code></pre>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Rule</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Segment count</td><td>Exactly 3</td></tr>
+            <tr><td>Allowed characters</td><td><code>a-z</code>, <code>0-9</code>, <code>-</code></td></tr>
+            <tr><td>Segment length</td><td>1 to 64 characters</td></tr>
+            <tr><td>Total length</td><td>At most 200 characters</td></tr>
+            <tr><td>Case</td><td>Lowercase only</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul>
+        <li><b>kind</b> is a member of the closed <a href="#kind-vocabulary">kind vocabulary</a>.</li>
+        <li><b>source-qualifier</b> identifies the reporting backend, for example <code>hwmon</code>, <code>winrt</code>, <code>win-radio</code>, <code>reference</code>. It is not required to equal the adapter's own <code>adapter_id</code>.</li>
+        <li><b>instance-qualifier</b> is a stable per-device value. Adapters derive it by hashing a persistent hardware identifier (BLAKE2b, 8-byte digest, 16 lowercase hex characters, unsalted so ids reproduce across runs and machines for the same hardware), or use a run-invariant fallback index when no persistent identifier exists. It is never a bus-probe-order index.</li>
+      </ul>
+
+      <div class="note note--info">
+        <span class="note__label">Collisions</span>
+        <p>
+          If two distinct sensors resolve to the same id, every one of them is kept and a
+          disambiguation suffix (<code>-0</code>, <code>-1</code>, …) is appended to the instance
+          qualifier. Ids are validated for grammar before any lookup, so a malformed id fails
+          without touching an adapter.
+        </p>
+      </div>
+
+      <!-- ================= CLI ================= -->
+      <h2 id="cli">CLI<a class="anchor" href="#cli" aria-label="Link to CLI">#</a></h2>
+
+      <div class="code">
+        <pre><code>sensortap [global-options] &lt;command&gt; [command-arguments] [global-options]</code></pre>
+      </div>
+
+      <p>
+        Global options are accepted both before and after the subcommand:
+        <code>sensortap --json list</code> and <code>sensortap list --json</code> are equivalent.
+      </p>
+
+      <div class="note note--info">
+        <span class="note__label">Output discipline</span>
+        <p>
+          Everything destined for stdout is buffered and flushed only after the whole command
+          succeeds, so a command that fails partway never leaks a partial table into a pipe. On
+          failure, only the cause is written, to stderr.
+        </p>
+      </div>
+
+      <h3 id="cli-list"><code>list</code><a class="anchor" href="#cli-list" aria-label="Link to list">#</a></h3>
+      <p>
+        Enumerate every discovered sensor, followed by per-adapter status lines and a summary
+        line. Takes no positional arguments.
+      </p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> sensortap list
+<span class="tok-p">$</span> sensortap list --json
+<span class="tok-p">$</span> sensortap list --include-elevated --include-motherboard</code></pre>
+      </div>
+
+      <h3 id="cli-read"><code>read</code><a class="anchor" href="#cli-read" aria-label="Link to read">#</a></h3>
+      <p>Read one sensor once.</p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> sensortap read temp.hwmon.2aed4545974396bc
+<span class="tok-p">$</span> sensortap read microphone.winrt.0 --consent microphone.winrt.0</code></pre>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sensor_id</code></td><td><span class="pill pill--req">yes</span></td><td>The sensor id to read.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Rejected with exit code <code>4</code> for a <code>buffer</code>-dtype sensor; use
+        <a href="#cli-stream"><code>stream</code></a> instead. The command is bounded at
+        10&nbsp;seconds regardless of adapter behaviour, after which it exits with code
+        <code>6</code>.
+      </p>
+
+      <h3 id="cli-stream"><code>stream</code><a class="anchor" href="#cli-stream" aria-label="Link to stream">#</a></h3>
+      <p>Stream one sensor continuously, one line per block, flushed as it arrives.</p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> sensortap stream microphone.reference.0 \
+    --consent microphone.reference.0 --duration 10</code></pre>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Argument</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sensor_id</code></td><td><span class="pill pill--req">yes</span></td><td>The sensor id to stream.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Runs until the duration elapses, the stream ends, or the process is interrupted.
+        Requires the owning adapter to implement streaming; otherwise exits with code
+        <code>4</code>.
+      </p>
+
+      <h3 id="cli-inspect"><code>inspect</code><a class="anchor" href="#cli-inspect" aria-label="Link to inspect">#</a></h3>
+      <p>Print the full <a href="#sensorinfo"><code>SensorInfo</code></a> record for one sensor, every field included.</p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> sensortap inspect accel.reference.0
+<span class="tok-p">$</span> sensortap inspect accel.reference.0 --json</code></pre>
+      </div>
+      <p>Exits with code <code>3</code> if the id is not in the current enumeration.</p>
+
+      <h3 id="cli-options">Global options<a class="anchor" href="#cli-options" aria-label="Link to Global options">#</a></h3>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Type</th><th>Default</th><th>Applies to</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>--json</code></td><td>boolean</td><td>off</td><td>all</td>
+              <td>Machine-readable JSON output instead of the text table.</td>
+            </tr>
+            <tr>
+              <td><code>--consent SENSOR_ID</code></td><td>string, repeatable</td><td>none</td><td><code>read</code>, <code>stream</code></td>
+              <td>Grant consent for one privacy-sensitive sensor id. Repeat the flag per sensor. Wildcards and patterns are rejected.</td>
+            </tr>
+            <tr>
+              <td><code>--include-elevated</code></td><td>boolean</td><td>off</td><td>all</td>
+              <td>Load adapters that declare <code>requires_elevation_optin</code>, and include sensors that require elevation.</td>
+            </tr>
+            <tr>
+              <td><code>--include-motherboard</code></td><td>boolean</td><td>off</td><td>all</td>
+              <td>Opt in to motherboard, Super-IO and embedded-controller sensors. See <a href="#cli-motherboard">below</a>.</td>
+            </tr>
+            <tr>
+              <td><code>--discovery-timeout MS</code></td><td>integer</td><td><code>5000</code></td><td>all</td>
+              <td>Per-round discovery timeout in milliseconds. Must be 100 to 60000 inclusive; outside that range is a usage error and the configured timeout is left unchanged.</td>
+            </tr>
+            <tr>
+              <td><code>--duration SECONDS</code></td><td>float</td><td>none</td><td><code>stream</code></td>
+              <td>Stop streaming after this many seconds. Must be 1 to 86400 inclusive. Validated before streaming starts.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        Invoking <code>sensortap</code> with no command, or an unrecognised one, prints usage
+        naming all four commands and exits with code <code>2</code>.
+      </p>
+
+      <h3 id="cli-motherboard">The motherboard opt-in<a class="anchor" href="#cli-motherboard" aria-label="Link to The motherboard opt-in">#</a></h3>
+
+      <p>
+        <code>--include-motherboard</code> enables motherboard, Super-IO and
+        embedded-controller monitoring in the bundled hardware-monitor helper. It typically adds
+        board temperatures, fan tachometers, and extra voltage rails.
+      </p>
+
+      <div class="note note--warn">
+        <span class="note__label">Why it is off by default</span>
+        <ol>
+          <li>That access path can reach the Ring&nbsp;0 kernel driver. sensortap never installs, registers, or starts a kernel driver, so where no such driver is already present these sensors simply do not appear.</li>
+          <li>Embedded-controller register reads can conflict with a vendor tool or another monitoring application (HWiNFO, OEM fan control) already holding the same registers.</li>
+          <li>An unrecognised Super-IO chip can return plausible-looking nonsense rather than an obvious failure.</li>
+        </ol>
+      </div>
+
+      <p>
+        Sensors that appear only under this flag carry <code>hwmon-mb</code> as their source
+        qualifier instead of <code>hwmon</code>, so an id records which capability set produced
+        it.
+      </p>
+      <p>
+        On a machine with no Ring&nbsp;0 driver present and no recognised Super-IO chip, the flag
+        is safe and finds nothing extra. Desktop boards with a standard Nuvoton or ITE chip
+        usually have more to report than laptops.
+      </p>
+
+      <!-- ================= ENV ================= -->
+      <h2 id="env">Environment variables<a class="anchor" href="#env" aria-label="Link to Environment variables">#</a></h2>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Enabling values</th><th>Default</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>SENSORTAP_HWMON_MOTHERBOARD</code></td>
+              <td><code>1</code>, <code>true</code>, <code>yes</code>, <code>on</code> (case-insensitive, surrounding whitespace ignored)</td>
+              <td>unset (off)</td>
+              <td>Same as <code>--include-motherboard</code>. The CLI flag sets this variable.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note note--info">
+        <span class="note__label">Why an environment variable</span>
+        <p>
+          The registry instantiates every adapter with no arguments, and the adapter interface
+          has no per-adapter configuration channel: acquisition configuration is deliberately
+          limited to sampling rate and block size, which is a different thing from a load-time
+          capability toggle. Set it before constructing a <code>Registry</code>, since adapters
+          read it at instantiation.
+        </p>
+      </div>
+
+      <!-- ================= PYTHON API ================= -->
+      <h2 id="python-api">Python API<a class="anchor" href="#python-api" aria-label="Link to Python API">#</a></h2>
+
+      <p>
+        A single lazily-created <code>Registry</code> backs the module-level functions.
+        Importing <code>sensortap</code> has no side effects: no adapters load, no
+        <code>setup()</code> runs, and no helper process spawns until one of these is first
+        called. Teardown is registered with <code>atexit</code> and runs exactly once per
+        adapter.
+      </p>
+
+      <div class="code">
+        <pre><code><span class="tok-k">import</span> sensortap
+
+<span class="tok-c"># enumerate, opens nothing, prompts nothing</span>
+sensors = sensortap.list_sensors()
+
+<span class="tok-c"># read a sensor that needs no consent</span>
+reading = sensortap.read(<span class="tok-s">"temp.hwmon.2aed4545974396bc"</span>)
+<span class="tok-k">print</span>(reading.values, reading.status)
+
+<span class="tok-c"># a privacy-sensitive sensor needs an explicit grant</span>
+<span class="tok-k">with</span> sensortap.consent([<span class="tok-s">"microphone.winrt.0"</span>]):
+    <span class="tok-k">for</span> block <span class="tok-k">in</span> sensortap.stream(<span class="tok-s">"microphone.winrt.0"</span>):
+        ...</code></pre>
+      </div>
+
+      <h3 id="api-list-sensors"><code>list_sensors()</code><a class="anchor" href="#api-list-sensors" aria-label="Link to list_sensors">#</a></h3>
+      <div class="code">
+        <pre><code>list_sensors(*, kind=<span class="tok-k">None</span>, source=<span class="tok-k">None</span>, id=<span class="tok-k">None</span>) -&gt; list[SensorInfo]</code></pre>
+      </div>
+      <p>
+        Run discovery across every loaded adapter concurrently and return the de-duplicated,
+        validated, ordered records.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>kind</code></td><td><code>str | None</code></td><td><code>None</code></td><td>Exact-match filter on <code>kind</code>.</td></tr>
+            <tr><td><code>source</code></td><td><code>str | None</code></td><td><code>None</code></td><td>Matches when the value appears anywhere in a record's <code>source</code> tuple.</td></tr>
+            <tr><td><code>id</code></td><td><code>str | None</code></td><td><code>None</code></td><td>Exact-match filter on the sensor id.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Filters are conjunctive and exact; nothing matching returns an empty list. Never opens a
+        device and never triggers an operating-system permission prompt, including for camera
+        and microphone sensors. Ordering is deterministic: by adapter load order, then ascending
+        id within an adapter.
+      </p>
+
+      <h3 id="api-read"><code>read()</code><a class="anchor" href="#api-read" aria-label="Link to read()">#</a></h3>
+      <div class="code">
+        <pre><code>read(sensor_id: str) -&gt; Reading</code></pre>
+      </div>
+      <p>
+        Read one sensor once. Order of checks, each of which happens before any adapter is
+        invoked: grammar validation, existence against the most recent enumeration, consent,
+        then dtype. Adapter errors are not swallowed; they propagate unchanged.
+      </p>
+      <p>
+        Raises <code>MalformedSensorIdError</code>, <code>UnknownSensorError</code>,
+        <code>ConsentError</code>, or <code>BlockPathRequiredError</code>. A rejected read never
+        consumes a <code>seq</code> value.
+      </p>
+
+      <h3 id="api-stream"><code>stream()</code><a class="anchor" href="#api-stream" aria-label="Link to stream()">#</a></h3>
+      <div class="code">
+        <pre><code>stream(sensor_id, *, block_size=<span class="tok-k">None</span>, rate_hz=<span class="tok-k">None</span>, buffer_blocks=<span class="tok-s">64</span>) -&gt; Stream</code></pre>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sensor_id</code></td><td><code>str</code></td><td><span class="pill pill--req">required</span></td><td>The sensor id to stream.</td></tr>
+            <tr><td><code>block_size</code></td><td><code>int | None</code></td><td><code>None</code></td><td>Samples per block. Outside the backend's supported range raises <code>BlockSizeOutOfRangeError</code> and allocates nothing.</td></tr>
+            <tr><td><code>rate_hz</code></td><td><code>float | None</code></td><td><code>None</code></td><td>Requested sampling rate. The applied rate may differ.</td></tr>
+            <tr><td><code>buffer_blocks</code></td><td><code>int</code></td><td><code>64</code></td><td>Ring buffer depth, 2 to 1024 inclusive. Outside that range, or a non-integer, raises <code>ValueError</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        These are the only two acquisition parameters anywhere in the interface. There is no
+        <code>**kwargs</code>, so no additional configuration key can be smuggled through.
+        Raises <code>UnsupportedOperationError</code> if the owning adapter does not implement
+        streaming; that adapter's other sensors remain readable through <code>read()</code>.
+      </p>
+
+      <h3 id="api-consent"><code>consent()</code><a class="anchor" href="#api-consent" aria-label="Link to consent()">#</a></h3>
+      <div class="code">
+        <pre><code>consent(sensor_ids) -&gt; ConsentGrant</code></pre>
+      </div>
+      <p>Create a grant covering exactly the named sensor ids. See <a href="#consent">Consent</a>.</p>
+
+      <h3 id="api-backend-status"><code>backend_status()</code><a class="anchor" href="#api-backend-status" aria-label="Link to backend_status()">#</a></h3>
+      <div class="code">
+        <pre><code>backend_status() -&gt; list[BackendStatus]</code></pre>
+      </div>
+      <p>
+        Return the current per-adapter status records. Performs no I/O and no adapter
+        interaction, so it answers immediately even before any enumeration has run.
+      </p>
+
+      <h3 id="api-registry"><code>Registry</code><a class="anchor" href="#api-registry" aria-label="Link to Registry">#</a></h3>
+      <p>
+        Construct one directly for isolation from the module-level singleton. Separate instances
+        never share consent state.
+      </p>
+      <div class="code">
+        <pre><code><span class="tok-k">from</span> sensortap <span class="tok-k">import</span> Registry
+
+registry = Registry(
+    discovery_timeout_ms=<span class="tok-s">5000</span>,
+    include_elevated=<span class="tok-k">False</span>,
+    audit_hook=<span class="tok-k">None</span>,
+)</code></pre>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>discovery_timeout_ms</code></td><td><code>int</code></td><td><code>5000</code></td><td>Per-round discovery timeout. Must be 100 to 60000 inclusive; validated before any adapter is touched.</td></tr>
+            <tr><td><code>include_elevated</code></td><td><code>bool</code></td><td><code>False</code></td><td>Load adapters declaring <code>requires_elevation_optin</code>.</td></tr>
+            <tr><td><code>audit_hook</code></td><td><code>Callable | None</code></td><td><code>None</code></td><td>Receives every consent lifecycle event.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Methods: <code>list_sensors</code>, <code>read</code>, <code>stream</code>,
+        <code>consent</code>, <code>backend_status</code>, and <code>shutdown</code>.
+      </p>
+      <p>
+        <code>shutdown()</code> calls <code>teardown()</code> on every loaded adapter exactly
+        once, catching and recording rather than re-raising any exception so one failing teardown
+        cannot stop the rest. It is idempotent and also registered with <code>atexit</code>. An
+        adapter whose <code>discover()</code> times out contributes no records for that round;
+        it is not an error and does not raise.
+      </p>
+
+      <!-- ================= SCHEMA ================= -->
+      <h2 id="schema">Schema types<a class="anchor" href="#schema" aria-label="Link to Schema types">#</a></h2>
+
+      <h3 id="sensorinfo"><code>SensorInfo</code><a class="anchor" href="#sensorinfo" aria-label="Link to SensorInfo">#</a></h3>
+      <p>
+        Frozen and slotted. Records are shared across threads during concurrent enumeration, so
+        immutability removes any question of a consumer mutating a record the registry still
+        holds.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>schema_version</code></td><td><code>str</code></td><td>Schema version this record follows, currently <code>"1.0"</code>.</td></tr>
+            <tr><td><code>id</code></td><td><code>str</code></td><td>The sensor id.</td></tr>
+            <tr><td><code>kind</code></td><td><code>str</code></td><td>A member of the closed kind vocabulary.</td></tr>
+            <tr><td><code>dtype</code></td><td><code>Dtype</code></td><td>Value shape discriminator.</td></tr>
+            <tr><td><code>unit</code></td><td><code>str | None</code></td><td>Unit token, at most 32 characters. <code>None</code> when unitless.</td></tr>
+            <tr><td><code>channels</code></td><td><code>tuple[str, ...]</code></td><td>Channel names, for example <code>("x", "y", "z")</code>.</td></tr>
+            <tr><td><code>shape</code></td><td><code>tuple[int, ...]</code></td><td>Value shape. Last dimension varies fastest.</td></tr>
+            <tr><td><code>range</code></td><td><code>tuple[float, float] | None</code></td><td>Minimum and maximum, when known.</td></tr>
+            <tr><td><code>resolution</code></td><td><code>float | None</code></td><td>Smallest distinguishable increment, when known.</td></tr>
+            <tr><td><code>rate_hz</code></td><td><code>RateSpec</code></td><td>Sampling-rate specification.</td></tr>
+            <tr><td><code>delivery</code></td><td><code>Delivery</code></td><td>How the backend hands values to the adapter.</td></tr>
+            <tr><td><code>derived</code></td><td><code>bool</code></td><td><code>True</code> when computed from more than one physical sensor rather than read directly.</td></tr>
+            <tr><td><code>requires_consent</code></td><td><code>bool</code></td><td><code>True</code> for privacy-sensitive sensors.</td></tr>
+            <tr><td><code>requires_elevation</code></td><td><code>bool</code></td><td><code>True</code> when reachable only with elevated privileges.</td></tr>
+            <tr><td><code>source</code></td><td><code>tuple[str, ...]</code></td><td>Every reporting backend, in load order.</td></tr>
+            <tr><td><code>vendor</code></td><td><code>str | None</code></td><td>Vendor string, when reported.</td></tr>
+            <tr><td><code>part_number</code></td><td><code>str | None</code></td><td>Part number, when reported.</td></tr>
+            <tr><td><code>availability</code></td><td><code>Availability</code></td><td>Current availability state.</td></tr>
+            <tr><td><code>extra</code></td><td><code>Mapping[str, object]</code></td><td>Adapter-specific extras. Empty by default.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="reading"><code>Reading</code><a class="anchor" href="#reading" aria-label="Link to Reading">#</a></h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td><code>str</code></td><td>The sensor id this reading came from.</td></tr>
+            <tr><td><code>t_mono</code></td><td><code>float</code></td><td>Monotonic timestamp. Never decreases for a given sensor.</td></tr>
+            <tr><td><code>t_wall</code></td><td><code>float</code></td><td>Wall-clock timestamp, Unix epoch seconds.</td></tr>
+            <tr><td><code>values</code></td><td><code>tuple[float, ...]</code></td><td>Flat values matching the declared <code>shape</code>. Empty only when <code>status</code> is <code>unavailable</code>.</td></tr>
+            <tr><td><code>seq</code></td><td><code>int</code></td><td>Per-sensor sequence number. Distinct across concurrent readers.</td></tr>
+            <tr><td><code>status</code></td><td><code>Status</code></td><td>Reading status.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Concurrent readers of one sensor always receive distinct <code>seq</code> values, and
+        <code>t_mono</code> is clamped forward if an adapter ever reports a non-increasing clock.
+      </p>
+
+      <h3 id="ratespec"><code>RateSpec</code><a class="anchor" href="#ratespec" aria-label="Link to RateSpec">#</a></h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>default</code></td><td><code>float | None</code></td><td>Default rate in Hz.</td></tr>
+            <tr><td><code>min</code></td><td><code>float | None</code></td><td>Slowest configurable rate in Hz.</td></tr>
+            <tr><td><code>max</code></td><td><code>float | None</code></td><td>Fastest configurable rate in Hz.</td></tr>
+            <tr><td><code>supported</code></td><td><code>tuple[float, ...]</code></td><td>Discrete configurable rates. Empty means a continuous range between <code>min</code> and <code>max</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        A requested rate outside <code>min</code>..<code>max</code> raises
+        <code>RateOutOfRangeError</code>. When <code>supported</code> is non-empty and the
+        request is not a member, the nearest supported rate by absolute distance is used, with
+        exact ties resolving to the lower rate.
+      </p>
+
+      <h3 id="enums">Enums<a class="anchor" href="#enums" aria-label="Link to Enums">#</a></h3>
+      <p>
+        All four are <code>StrEnum</code>, so they compare and serialize as plain strings, and
+        the value sets are identical across platforms by construction.
+      </p>
+
+      <h4 id="dtype"><code>Dtype</code></h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>scalar</code></td><td>One value.</td></tr>
+            <tr><td><code>vector3</code></td><td>Three values on three axes.</td></tr>
+            <tr><td><code>matrix</code></td><td>A two-dimensional grid, for example a touchpad capacitive image.</td></tr>
+            <tr><td><code>buffer</code></td><td>A block of samples. Readable only through a stream, never <code>read()</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4 id="delivery"><code>Delivery</code></h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>push</code></td><td>The backend delivers values as they arrive.</td></tr>
+            <tr><td><code>poll</code></td><td>The adapter fetches a value on demand.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4 id="availability"><code>Availability</code></h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>present</code></td><td>Discovered and currently readable.</td></tr>
+            <tr><td><code>absent</code></td><td>The sensor class is not exposed by the platform or backend.</td></tr>
+            <tr><td><code>unavailable</code></td><td>Discovered, but currently fails to read.</td></tr>
+            <tr><td><code>in_use_by_other_app</code></td><td>Another process holds exclusive access.</td></tr>
+            <tr><td><code>permission_denied</code></td><td>The operating system denied access.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4 id="status"><code>Status</code></h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>ok</code></td><td>A current, valid value.</td></tr>
+            <tr><td><code>stale</code></td><td>Older than two sampling intervals.</td></tr>
+            <tr><td><code>degraded</code></td><td>Valid, but at least one earlier block was discarded under backpressure.</td></tr>
+            <tr><td><code>unavailable</code></td><td>No value. <code>values</code> is empty.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================= VOCABULARIES ================= -->
+      <h2 id="vocabularies">Vocabularies<a class="anchor" href="#vocabularies" aria-label="Link to Vocabularies">#</a></h2>
+
+      <h3 id="kind-vocabulary">Kind vocabulary<a class="anchor" href="#kind-vocabulary" aria-label="Link to Kind vocabulary">#</a></h3>
+      <p>
+        Closed, 24 members. Adding a kind is a MINOR schema bump; removing or re-meaning one is
+        MAJOR. An adapter needing a kind outside this set must land a one-line vocabulary change
+        alongside its adapter file. The friction is deliberate: an open vocabulary would make
+        cross-platform <code>kind</code> filtering meaningless.
+      </p>
+      <div class="code">
+        <pre><code>accel              gyro               magn               incline
+orientation        hinge-angle        light              proximity
+temp               fan                voltage            current
+power              clock              load               battery
+camera             microphone         touchpad           touchscreen
+keystroke-timing   radio-signal       humidity           pressure</code></pre>
+      </div>
+
+      <h3 id="unit-vocabulary">Unit vocabulary<a class="anchor" href="#unit-vocabulary" aria-label="Link to Unit vocabulary">#</a></h3>
+      <p>
+        <code>unit</code> is validated as a well-formed token of at most 32 characters, not as a
+        semantic UCUM expression. Adapters shipped with sensortap emit only:
+      </p>
+      <div class="code">
+        <pre><code>degC   V   A   W   Hz   m/s2   deg/s   uT   lx   deg   %   mW.h   rpm</code></pre>
+      </div>
+      <p>
+        Fan speed is pinned to <code>rpm</code> once in the schema so no adapter picks its own
+        spelling.
+      </p>
+
+      <!-- ================= CONSENT ================= -->
+      <h2 id="consent">Consent<a class="anchor" href="#consent" aria-label="Link to Consent">#</a></h2>
+
+      <p>
+        Camera, microphone, and touchpad capacitive-image sensors are privacy-sensitive: their
+        <code>SensorInfo.requires_consent</code> is <code>True</code>.
+      </p>
+
+      <div class="note note--ok">
+        <span class="note__label">Safe by default</span>
+        <p>
+          Enumeration never opens a device or triggers a permission prompt. Reading or streaming
+          one of these requires a grant naming that exact sensor id first, or the read is
+          refused with <code>ConsentError</code> and the device is left closed.
+        </p>
+      </div>
+
+      <div class="code">
+        <pre><code><span class="tok-k">import</span> sensortap
+
+<span class="tok-k">with</span> sensortap.consent([<span class="tok-s">"microphone.winrt.0"</span>]) <span class="tok-k">as</span> grant:
+    <span class="tok-k">for</span> block <span class="tok-k">in</span> sensortap.stream(<span class="tok-s">"microphone.winrt.0"</span>):
+        ...
+<span class="tok-c"># grant ended, every device opened under it closed</span></code></pre>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Property</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Storage</td><td>Process memory only. Never written to disk, an environment variable, or any other store.</td></tr>
+            <tr><td>Initial state</td><td>Every gate starts with zero grants.</td></tr>
+            <tr><td>Scope</td><td>Per <code>Registry</code> instance. Separate instances never share grant state.</td></tr>
+            <tr><td>Wildcards</td><td>Rejected. A <code>*</code>, <code>?</code>, <code>[</code>, or <code>]</code> anywhere, a non-string, or an empty set raises <code>InvalidConsentRequestError</code> and creates no grant.</td></tr>
+            <tr><td>Ending</td><td>Context exit, explicit <code>revoke()</code>, or the <code>atexit</code> backstop. Every device opened under the grant is closed before returning, even if one close fails.</td></tr>
+            <tr><td>Idempotence</td><td><code>revoke()</code> is safe to call repeatedly.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <code>ConsentGrant</code> exposes <code>sensor_ids</code>, <code>revoke()</code>,
+        <code>register_open_device()</code>, and the context-manager protocol.
+      </p>
+
+      <h3 id="audit-events">Audit events<a class="anchor" href="#audit-events" aria-label="Link to Audit events">#</a></h3>
+      <p>
+        Every grant creation, use, denial, and end emits an <code>AuditEvent</code> to the
+        <code>audit_hook</code> passed to <code>Registry</code>.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sensor_id</code></td><td><code>str</code></td><td>The sensor involved.</td></tr>
+            <tr><td><code>outcome</code></td><td><code>str</code></td><td>One of <code>granted</code>, <code>used</code>, <code>denied</code>, <code>ended</code>.</td></tr>
+            <tr><td><code>t_wall</code></td><td><code>float</code></td><td>Wall-clock timestamp.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The type carries no values field, so a reading cannot leak into the audit trail. An
+        exception raised by the hook is swallowed rather than propagated.
+      </p>
+
+      <!-- ================= STREAMING ================= -->
+      <h2 id="streaming">Streaming<a class="anchor" href="#streaming" aria-label="Link to Streaming">#</a></h2>
+
+      <p>
+        <code>Stream</code> is both an iterator and a context manager. A fixed-capacity ring
+        buffer sits between a background producer thread and the consumer.
+      </p>
+
+      <div class="code">
+        <pre><code><span class="tok-k">import</span> sensortap
+
+<span class="tok-k">with</span> sensortap.stream(<span class="tok-s">"microphone.winrt.0"</span>, buffer_blocks=<span class="tok-s">128</span>) <span class="tok-k">as</span> s:
+    <span class="tok-k">for</span> block <span class="tok-k">in</span> s:
+        <span class="tok-k">print</span>(block.seq, block.status, len(block.values))
+        <span class="tok-k">if</span> s.discarded_blocks:
+            <span class="tok-k">break</span></code></pre>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Member</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>sensor_id</code></td><td><code>str</code></td><td>The streamed sensor id.</td></tr>
+            <tr><td><code>buffer_blocks</code></td><td><code>int</code></td><td>Configured ring buffer depth.</td></tr>
+            <tr><td><code>discarded_blocks</code></td><td><code>int</code></td><td>Count of blocks dropped under backpressure.</td></tr>
+            <tr><td><code>applied_rate_hz</code></td><td><code>float | None</code></td><td>Rate the backend actually applied.</td></tr>
+            <tr><td><code>achieved_rate_hz()</code></td><td><code>float | None</code></td><td>Measured rate over the most recent 100 delivered blocks. <code>None</code> below 2 delivered blocks.</td></tr>
+            <tr><td><code>close()</code></td><td><code>None</code></td><td>Release backend resources. Idempotent.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note note--info">
+        <span class="note__label">Backpressure</span>
+        <p>
+          When the buffer is full, the oldest undelivered block is dropped,
+          <code>discarded_blocks</code> increments, and the next block actually delivered carries
+          <code>status = degraded</code>. <code>seq</code> is assigned at production time, before
+          the buffer, so a discard leaves a gap in <code>seq</code> rather than renumbering.
+        </p>
+      </div>
+
+      <p>
+        While the buffer is empty and the stream is open, iteration blocks until a block
+        arrives. Once the producer stops and the buffer drains, iteration raises
+        <code>StopIteration</code>. Iterating an explicitly closed stream raises
+        <code>ClosedStreamError</code>.
+      </p>
+      <p>
+        Resources are released by <code>close()</code>, by garbage collection through
+        <code>weakref.finalize</code> if the stream is dropped without closing, or by an
+        <code>atexit</code> backstop. Some backends permit only one concurrent stream per
+        sensor; a second request raises <code>StreamBusyError</code> and leaves the existing
+        stream open and unaffected.
+      </p>
+
+      <!-- ================= BACKEND STATUS ================= -->
+      <h2 id="backend-status">Backend status<a class="anchor" href="#backend-status" aria-label="Link to Backend status">#</a></h2>
+
+      <p>
+        <code>backend_status()</code> returns one <code>BackendStatus</code> per adapter,
+        maintained continuously rather than computed on demand.
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>adapter_id</code></td><td><code>str</code></td><td>The adapter's stable identifier.</td></tr>
+            <tr><td><code>state</code></td><td><code>"loaded" | "not_loaded" | "degraded" | "unknown"</code></td><td>Current state.</td></tr>
+            <tr><td><code>discovered_count</code></td><td><code>int</code></td><td>Sensors reported by the most recent enumeration.</td></tr>
+            <tr><td><code>reason</code></td><td><code>NotLoadedReason | None</code></td><td>Populated only when <code>state</code> is <code>not_loaded</code>.</td></tr>
+            <tr><td><code>remediation</code></td><td><code>str | None</code></td><td>Human-readable hint, 1 to 500 characters.</td></tr>
+            <tr><td><code>unsatisfied_deps</code></td><td><code>tuple[DependencySpec, ...]</code></td><td>Up to 20 entries, each with <code>name</code> and <code>version_constraint</code>.</td></tr>
+            <tr><td><code>last_timeout_ms</code></td><td><code>int | None</code></td><td>The discovery timeout exceeded on the most recent enumeration.</td></tr>
+            <tr><td><code>helper_state</code></td><td><code>"running" | "not_running" | "failed_to_start" | None</code></td><td>For helper-dependent adapters.</td></tr>
+            <tr><td><code>introspection_failed</code></td><td><code>bool</code></td><td><code>True</code> when the state could not be determined.</td></tr>
+            <tr><td><code>last_enumeration_ms</code></td><td><code>float | None</code></td><td>Duration of the most recent enumeration.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <code>NotLoadedReason</code> is a closed set: <code>unsupported_platform</code>,
+        <code>missing_dependency</code>, <code>load_error</code>,
+        <code>elevation_required</code>, <code>not_opted_in</code>.
+      </p>
+      <p>
+        Loaded-with-zero-sensors is <code>state="loaded"</code> with
+        <code>discovered_count=0</code>, which never collapses into a <code>not_loaded</code>
+        record: <code>reason</code> is meaningful only when <code>state</code> is
+        <code>not_loaded</code>.
+      </p>
+
+      <!-- ================= ERRORS ================= -->
+      <h2 id="errors">Errors and exit codes<a class="anchor" href="#errors" aria-label="Link to Errors and exit codes">#</a></h2>
+
+      <p>
+        All exceptions derive from <code>SensortapError</code>, so one <code>except</code> clause
+        catches everything. Each carries structured fields, so no caller needs to parse a
+        message string.
+      </p>
+
+      <div class="code">
+        <pre><code><span class="tok-k">from</span> sensortap.registry.errors <span class="tok-k">import</span> SensortapError, UnknownSensorError</code></pre>
+      </div>
+
+      <h3 id="exit-codes">Exit codes<a class="anchor" href="#exit-codes" aria-label="Link to Exit codes">#</a></h3>
+      <p>Frozen; part of the CLI's contract.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Code</th><th>Meaning</th><th>Exceptions</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Success</td><td>—</td></tr>
+            <tr><td><code>1</code></td><td>Unexpected internal error</td><td>anything unanticipated</td></tr>
+            <tr><td><code>2</code></td><td>Unknown or malformed command or option</td><td>argparse failure, <code>InvalidTimeoutError</code>, <code>MalformedSensorIdError</code></td></tr>
+            <tr><td><code>3</code></td><td>Unknown sensor id</td><td><code>UnknownSensorError</code></td></tr>
+            <tr><td><code>4</code></td><td>Sensor unavailable or device open failure</td><td><code>SensorUnavailableError</code>, <code>DeviceOpenError</code>, <code>StreamBusyError</code>, <code>BlockPathRequiredError</code>, <code>UnsupportedOperationError</code></td></tr>
+            <tr><td><code>5</code></td><td>Missing consent</td><td><code>ConsentError</code>, <code>InvalidConsentRequestError</code></td></tr>
+            <tr><td><code>6</code></td><td>Read timeout</td><td><code>ReadTimeoutError</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="exception-reference">Exception reference<a class="anchor" href="#exception-reference" aria-label="Link to Exception reference">#</a></h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Exception</th><th>Raised when</th><th>Key fields</th></tr></thead>
+          <tbody>
+            <tr><td><code>UnknownSensorError</code></td><td>The id is absent from the current enumeration.</td><td><code>sensor_id</code>, <code>last_known_availability</code></td></tr>
+            <tr><td><code>MalformedSensorIdError</code></td><td>The id violates the grammar or length limits. No lookup is performed.</td><td><code>sensor_id</code>, <code>offending_segment</code></td></tr>
+            <tr><td><code>BlockPathRequiredError</code></td><td><code>read()</code> was called on a <code>buffer</code> sensor.</td><td><code>sensor_id</code></td></tr>
+            <tr><td><code>BlockSizeOutOfRangeError</code></td><td>A requested block size is outside the supported range. Nothing is allocated.</td><td><code>sensor_id</code>, <code>requested_block_size</code>, <code>min_block_size</code>, <code>max_block_size</code></td></tr>
+            <tr><td><code>ClosedStreamError</code></td><td>A block was requested from a closed stream.</td><td><code>sensor_id</code></td></tr>
+            <tr><td><code>StreamBusyError</code></td><td>A second stream was requested where the backend permits one.</td><td><code>sensor_id</code></td></tr>
+            <tr><td><code>RateOutOfRangeError</code></td><td>A requested rate falls outside <code>min</code>..<code>max</code>.</td><td><code>sensor_id</code>, <code>requested_rate_hz</code>, <code>min_rate_hz</code>, <code>max_rate_hz</code>, <code>supported_rates_hz</code></td></tr>
+            <tr><td><code>RateFixedError</code></td><td>Rate configuration was requested on a fixed-rate sensor.</td><td><code>sensor_id</code></td></tr>
+            <tr><td><code>RateConflictError</code></td><td>A rate change was requested on an open stream, or a second stream requested a different rate. The applied rate is unchanged.</td><td><code>sensor_id</code>, <code>applied_rate_hz</code>, <code>requested_rate_hz</code></td></tr>
+            <tr><td><code>InvalidTimeoutError</code></td><td>A discovery timeout is non-numeric or outside 100..60000 ms. The configured timeout is unchanged.</td><td><code>supplied_value</code>, <code>min_ms</code>, <code>max_ms</code></td></tr>
+            <tr><td><code>UnsupportedOperationError</code></td><td>An optional adapter operation was requested that the owning adapter does not implement.</td><td><code>sensor_id</code>, <code>operation</code></td></tr>
+            <tr><td><code>UnsupportedConfigKeyError</code></td><td>A configuration key other than rate or block size was supplied.</td><td><code>sensor_id</code>, <code>key</code></td></tr>
+            <tr><td><code>ConsentError</code></td><td>A privacy-sensitive sensor was read without a grant. The device is left closed.</td><td><code>sensor_id</code></td></tr>
+            <tr><td><code>InvalidConsentRequestError</code></td><td>A grant used a wildcard, a pattern, or an empty set. No grant is created.</td><td><code>reason</code></td></tr>
+            <tr><td><code>SensorUnavailableError</code></td><td>A discovered sensor cannot currently be opened or read.</td><td><code>sensor_id</code>, <code>reason</code></td></tr>
+            <tr><td><code>DeviceOpenError</code></td><td>The underlying device handle failed to open.</td><td><code>sensor_id</code>, <code>reason</code></td></tr>
+            <tr><td><code>ReadTimeoutError</code></td><td>A poll read exceeded its time budget.</td><td><code>sensor_id</code>, <code>timeout_ms</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note note--info">
+        <span class="note__label">Never raised to a caller</span>
+        <p>
+          <code>ValidationError</code> and <code>SchemaVersionError</code> are constructed and
+          recorded by the registry while dropping the offending record and keeping every other
+          valid record from that adapter.
+        </p>
+      </div>
+
+      <!-- ================= ADAPTERS ================= -->
+      <h2 id="adapters">Shipped adapters<a class="anchor" href="#adapters" aria-label="Link to Shipped adapters">#</a></h2>
+
+      <p>Nine Windows adapters, all run against real hardware.</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Adapter id</th><th>Kinds</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>winrt_motion</code></td><td><code>accel</code>, <code>gyro</code>, <code>magn</code></td><td>WinRT motion classes. Rate configurable through report interval.</td></tr>
+            <tr><td><code>winrt_orientation</code></td><td><code>incline</code>, <code>orientation</code>, <code>hinge-angle</code></td><td>All <code>derived</code>: fused from multiple physical sensors.</td></tr>
+            <tr><td><code>winrt_light</code></td><td><code>light</code></td><td>Ambient light in lux.</td></tr>
+            <tr><td><code>winrt_camera</code></td><td><code>camera</code></td><td>Consent-gated.</td></tr>
+            <tr><td><code>winrt_audio</code></td><td><code>microphone</code></td><td>Consent-gated. <code>buffer</code> dtype, stream only.</td></tr>
+            <tr><td><code>win_battery</code></td><td><code>battery</code>, <code>power</code>, <code>temp</code>, <code>voltage</code></td><td>Charge percentage, capacity, charge rate.</td></tr>
+            <tr><td><code>win_radio</code></td><td><code>radio-signal</code></td><td>Wi-Fi signal, Bluetooth presence.</td></tr>
+            <tr><td><code>win_touchpad</code></td><td><code>touchpad</code></td><td>Capacitive image is consent-gated.</td></tr>
+            <tr><td><code>hwmon_bridge</code></td><td><code>temp</code>, <code>fan</code>, <code>voltage</code>, <code>current</code>, <code>power</code>, <code>clock</code>, <code>load</code></td><td>Bundled .NET helper wrapping LibreHardwareMonitor. Board/Super-IO/EC sensors behind <code>--include-motherboard</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note note--warn">
+        <span class="note__label">Not hardware</span>
+        <p>
+          A tenth adapter, <code>reference</code>, ships as a synthetic contributor example. It
+          requires no hardware and exposes one sensor per dtype, including deliberate edge
+          cases: a stale-value path, a never-received-value path that always reads
+          <code>unavailable</code>, a plain poll path, and a block/stream path.
+          <code>accel.reference.0</code> in particular never produces a sample by design, so it
+          always reads <code>unavailable</code>. Its readings are not measurements.
+        </p>
+      </div>
+
+      <h3 id="helper-security">Helper process security<a class="anchor" href="#helper-security" aria-label="Link to Helper process security">#</a></h3>
+      <p>
+        <code>hwmon_bridge</code> spawns a child process and speaks newline-delimited JSON over
+        a named pipe. Python is the pipe server; the helper is the client.
+      </p>
+      <ul>
+        <li>The pipe carries a per-user security descriptor and rejects remote clients.</li>
+        <li>A single-use launch token is delivered over the child's stdin, never on the command line.</li>
+        <li>The helper's first message must be exactly <code>HELLO &lt;token&gt;</code>, compared in constant time.</li>
+        <li>The connecting process id is verified against the spawned child's.</li>
+        <li>Any authentication failure closes the pipe and terminates the child immediately, with no retry.</li>
+        <li>Total readiness budget is 10 seconds. Failure marks the adapter unavailable rather than raising, so every other adapter still enumerates.</li>
+      </ul>
+      <p>sensortap never installs, registers, or starts a kernel driver.</p>
+
+      <!-- ================= WRITING ADAPTERS ================= -->
+      <h2 id="writing-adapters">Writing an adapter<a class="anchor" href="#writing-adapters" aria-label="Link to Writing an adapter">#</a></h2>
+
+      <p>
+        One sensor family is one file, registered through a standard Python entry point. No edit
+        to sensortap's own source is needed.
+      </p>
+
+      <div class="code">
+        <pre><code><span class="tok-c">[project.entry-points."sensortap.adapters"]</span>
+my_widget = <span class="tok-s">"my_package.adapter:MyWidgetAdapter"</span></code></pre>
+      </div>
+
+      <p>
+        The interface is a <code>typing.Protocol</code>, so structural typing applies and your
+        class needs no import-time dependency on a sensortap base class.
+      </p>
+
+      <h3 id="adaptermeta"><code>AdapterMeta</code><a class="anchor" href="#adaptermeta" aria-label="Link to AdapterMeta">#</a></h3>
+      <p>
+        Declared as a class variable. The registry reads it without instantiating your class, so
+        the platform and version gates cost no side effects.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>adapter_id</code></td><td><code>str</code></td><td><span class="pill pill--req">required</span></td><td>Stable, lowercase identifier.</td></tr>
+            <tr><td><code>interface_version</code></td><td><code>str</code></td><td><span class="pill pill--req">required</span></td><td><code>"MAJOR.MINOR"</code>. MAJOR must match the core's <code>1.0</code>; MINOR is advisory.</td></tr>
+            <tr><td><code>supported_platforms</code></td><td><code>frozenset[str]</code></td><td><span class="pill pill--req">required</span></td><td>Platform tags, for example <code>{"win32"}</code>.</td></tr>
+            <tr><td><code>priority</code></td><td><code>int | None</code></td><td><code>None</code></td><td>Resolves id conflicts between adapters. <code>None</code> sorts lowest.</td></tr>
+            <tr><td><code>requires_elevation_optin</code></td><td><code>bool</code></td><td><code>False</code></td><td>When <code>True</code>, the adapter loads only under <code>--include-elevated</code>.</td></tr>
+            <tr><td><code>read_only_declared</code></td><td><code>bool</code></td><td><code>False</code></td><td><b>Must be <code>True</code></b> or the registry refuses to load the adapter.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="required-methods">Required methods<a class="anchor" href="#required-methods" aria-label="Link to Required methods">#</a></h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Method</th><th>Contract</th></tr></thead>
+          <tbody>
+            <tr><td><code>discover() -&gt; Sequence[SensorInfo]</code></td><td>Enumerate everything this adapter can report. Must not open camera, microphone, or HID device handles; those open lazily on first read or stream.</td></tr>
+            <tr><td><code>read(sensor_id) -&gt; Reading</code></td><td>Return the current value for one owned sensor. Never called for a <code>buffer</code> sensor.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="optional-methods">Optional methods<a class="anchor" href="#optional-methods" aria-label="Link to Optional methods">#</a></h3>
+      <p>
+        A missing optional method is not a load-time error. The registry raises
+        <code>UnsupportedOperationError</code> only when a caller actually invokes that
+        operation, and the adapter's other sensors stay readable through <code>read()</code>.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Method</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>open_stream(sensor_id, *, block_size, rate_hz, buffer_blocks)</code></td><td>Open a block/streaming path. Returns a <code>StreamSource</code>.</td></tr>
+            <tr><td><code>supported_block_sizes(sensor_id)</code></td><td>Minimum and maximum block size.</td></tr>
+            <tr><td><code>configure_rate(sensor_id, rate_hz)</code></td><td>Request a rate; return the rate actually applied. Raise <code>RateFixedError</code> for fixed-rate sensors.</td></tr>
+            <tr><td><code>setup()</code></td><td>One-time initialization after instantiation.</td></tr>
+            <tr><td><code>teardown()</code></td><td>Release adapter-level resources. Called at most once.</td></tr>
+            <tr><td><code>health()</code></td><td>Report detail beyond <code>BackendStatus</code>. Exposes <code>status</code> and <code>detail</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="streamsource"><code>StreamSource</code><a class="anchor" href="#streamsource" aria-label="Link to StreamSource">#</a></h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Method</th><th>Contract</th></tr></thead>
+          <tbody>
+            <tr><td><code>next_block() -&gt; Reading</code></td><td>Return the next block. Blocks until one is ready or the stream closes.</td></tr>
+            <tr><td><code>close() -&gt; None</code></td><td>Release backend resources. Must complete within 1000 ms.</td></tr>
+            <tr><td><code>achieved_rate() -&gt; float | None</code></td><td>Measured delivery rate. <code>None</code> below 2 samples.</td></tr>
+            <tr><td><code>applied_rate() -&gt; float</code></td><td>The rate actually applied, which may differ from the request.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Buffering, discard-on-backpressure, and the iterator surface belong to the registry's
+        <code>Stream</code>, not to your adapter.
+      </p>
+
+      <h3 id="conformance">Conformance check<a class="anchor" href="#conformance" aria-label="Link to Conformance check">#</a></h3>
+      <p>
+        A reusable check ships inside the package, so you can validate your adapter against the
+        same rules the nine Windows adapters were checked against, with no access to sensortap's
+        repository:
+      </p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> python -m sensortap.adapters.conformance my_package.adapter:MyWidgetAdapter</code></pre>
+      </div>
+      <p>Exits <code>0</code> when the report passes, <code>1</code> when it fails, <code>2</code> on a usage or construction error.</p>
+
+      <h3 id="load-sequence">Load sequence<a class="anchor" href="#load-sequence" aria-label="Link to Load sequence">#</a></h3>
+      <ol>
+        <li>Entry points are discovered and sorted by <code>(distribution_name, entry_point_name)</code> for a deterministic load order.</li>
+        <li><code>AdapterMeta</code> is read off the class without instantiating it.</li>
+        <li>A platform or interface-MAJOR mismatch is a skip, not a failure.</li>
+        <li>An adapter requiring elevation opt-in is skipped unless the caller opted in.</li>
+        <li>Import, instantiation, and <code>setup()</code> are bounded at 5000 ms in total. An overrun or raise is recorded as a load failure, retained for the process lifetime, and iteration continues with the remaining adapters.</li>
+        <li>An adapter whose <code>read_only_declared</code> is not <code>True</code> is refused.</li>
+      </ol>
+      <p>One bad adapter never aborts loading the rest.</p>
+
+      <h3 id="pipeline">Post-collection pipeline<a class="anchor" href="#pipeline" aria-label="Link to Post-collection pipeline">#</a></h3>
+      <p>Records returned by <code>discover()</code> pass through six ordered steps:</p>
+      <ol>
+        <li><b>Validate</b> every record. An invalid record is dropped individually; that adapter's other records survive.</li>
+        <li><b>De-duplicate</b> on byte-for-byte id equality only. No fuzzy matching.</li>
+        <li><b>Resolve conflicts</b> between different adapters reporting the same id, by declared <code>priority</code>, ties going to the first loaded. The winner's <code>source</code> lists every reporting adapter.</li>
+        <li><b>Disambiguate collisions</b> where one adapter reports the same id for genuinely distinct sensors, by appending a suffix. Every sensor is kept.</li>
+        <li><b>Order</b> by adapter load order, then ascending id.</li>
+        <li><b>Filter</b> on <code>kind</code>, <code>source</code>, and <code>id</code>.</li>
+      </ol>
+
+      <!-- ================= GUARANTEES ================= -->
+      <h2 id="guarantees">Guarantees and limits<a class="anchor" href="#guarantees" aria-label="Link to Guarantees and limits">#</a></h2>
+
+      <h3 id="guaranteed">Guaranteed<a class="anchor" href="#guaranteed" aria-label="Link to Guaranteed">#</a></h3>
+      <ul>
+        <li>Importing <code>sensortap</code> loads no adapters and spawns no processes.</li>
+        <li>Enumeration never opens a device or triggers a permission prompt.</li>
+        <li>Reading a camera, microphone, or touchpad capacitive image requires an explicit per-id consent grant. Grants live in memory only.</li>
+        <li>No kernel driver is ever installed, registered, or started.</li>
+        <li>The interface defines no actuation path: no method transmits a setpoint, control value, or firmware payload. Acquisition configuration is limited to sampling rate and block size.</li>
+        <li>Sensor ids are stable across runs on unchanged hardware.</li>
+        <li><code>t_mono</code> never decreases for a sensor, and concurrent readers get distinct <code>seq</code> values.</li>
+        <li>One adapter's failure, timeout, or exception never prevents other adapters from loading or enumerating.</li>
+        <li>The public API is identical on every platform. Nothing in the core branches on the operating system.</li>
+        <li>Every enum value set is identical across platforms.</li>
+      </ul>
+
+      <h3 id="not-guaranteed">Not guaranteed, or not built<a class="anchor" href="#not-guaranteed" aria-label="Link to Not guaranteed, or not built">#</a></h3>
+      <ul>
+        <li><b>Linux.</b> The registry and adapter interface are already platform-neutral and nothing in the core imports anything Windows-specific, but no Linux backend exists yet. This is the clearest open contribution: sysfs hwmon, IIO, V4L2, ALSA, evdev, one file per family.</li>
+        <li><b>A sensor's existence.</b> A WinRT class the operating system does not expose reports <code>absent</code> rather than guessing whether the physical chip is there, since a wrong reading is harder to debug than a missing one.</li>
+        <li><b><code>read_only_declared</code> enforcement.</b> It is a declaration the registry requires, not a property it can verify inside an adapter's internals.</li>
+        <li><b>Unit semantics.</b> <code>unit</code> is validated as a token, not as a UCUM expression.</li>
+        <li><b>Motherboard and EC sensors.</b> Available only under an explicit opt-in, and absent entirely where no Ring&nbsp;0 driver is already present or no Super-IO chip is recognised.</li>
+        <li><b>Adoption figures.</b> None exist to quote, and none are invented.</li>
+      </ul>
+
+      <footer class="foot">
+        <p>
+          Built by <a href="/">Basel Ashraf</a>. sensortap is free and open source under MIT.
+        </p>
+        <p>
+          <a href="../">Project overview</a> &middot;
+          <a href="../reference.md">Raw markdown</a> &middot;
+          <a href="https://github.com/BaselAshraf81/sensortap" rel="noopener">GitHub</a>
+        </p>
+      </footer>
+
+    </div>
+  </main>
+
+  <aside class="toc" aria-label="On this page">
+    <p class="toc__title">On this page</p>
+    <ul class="toc__list" id="toc-list"></ul>
+  </aside>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var doc = document.querySelector(".doc__inner");
+
+  /* ---------- Copy buttons on every code block ---------- */
+  document.querySelectorAll(".code").forEach(function (wrap) {
+    var pre = wrap.querySelector("pre");
+    if (!pre) return;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "code__copy";
+    btn.textContent = "Copy";
+    btn.setAttribute("aria-label", "Copy code to clipboard");
+    wrap.appendChild(btn);
+
+    btn.addEventListener("click", function () {
+      // Strip the shell prompt so the copied text is runnable.
+      var text = pre.innerText.replace(/^\s*\$\s?/gm, "").trim();
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "Copied";
+        btn.classList.add("code__copy--done");
+        setTimeout(function () {
+          btn.textContent = "Copy";
+          btn.classList.remove("code__copy--done");
+        }, 1500);
+      });
+    });
+  });
+
+  /* ---------- Build the "On this page" list ---------- */
+  var tocList = document.getElementById("toc-list");
+  var headings = doc ? doc.querySelectorAll("h2[id], h3[id]") : [];
+
+  headings.forEach(function (h) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.className = "toc__link" + (h.tagName === "H3" ? " toc__link--h3" : "");
+    a.href = "#" + h.id;
+    // Clone so the trailing "#" anchor link is not copied into the TOC label.
+    var clone = h.cloneNode(true);
+    var anchor = clone.querySelector(".anchor");
+    if (anchor) anchor.remove();
+    a.textContent = clone.textContent.trim();
+    li.appendChild(a);
+    tocList.appendChild(li);
+  });
+
+  /* ---------- Scroll spy for TOC and sidebar ---------- */
+  var tocLinks = Array.prototype.slice.call(tocList.querySelectorAll(".toc__link"));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll("#sidebar .nav__link"));
+  var order = Array.prototype.slice.call(headings);
+
+  function markCurrent() {
+    var probe = window.scrollY + parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop || 0) + 8;
+    var activeId = order.length ? order[0].id : null;
+    for (var i = 0; i < order.length; i++) {
+      if (order[i].offsetTop <= probe) activeId = order[i].id;
+      else break;
+    }
+
+    tocLinks.forEach(function (a) {
+      if (a.getAttribute("href") === "#" + activeId) a.setAttribute("aria-current", "true");
+      else a.removeAttribute("aria-current");
+    });
+
+    // The sidebar only lists h2 sections, so walk up to the nearest one.
+    var sectionId = activeId;
+    var idx = order.findIndex(function (h) { return h.id === activeId; });
+    for (var j = idx; j >= 0; j--) {
+      if (order[j].tagName === "H2") { sectionId = order[j].id; break; }
+    }
+    navLinks.forEach(function (a) {
+      if (a.getAttribute("href") === "#" + sectionId) a.setAttribute("aria-current", "true");
+      else a.removeAttribute("aria-current");
+    });
+  }
+
+  var ticking = false;
+  window.addEventListener("scroll", function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { markCurrent(); ticking = false; });
+  }, { passive: true });
+  window.addEventListener("hashchange", markCurrent);
+  markCurrent();
+
+  /* ---------- Mirror the sidebar into the mobile drawer ---------- */
+  var drawer = document.getElementById("drawer-nav");
+  var sidebar = document.getElementById("sidebar");
+  if (drawer && sidebar) {
+    drawer.innerHTML = sidebar.innerHTML;
+    drawer.addEventListener("click", function (e) {
+      if (e.target.closest("a")) {
+        var d = drawer.closest("details");
+        if (d) d.open = false;
+      }
+    });
+  }
+
+  /* ---------- Search ---------- */
+  var input = document.getElementById("search");
+  var results = document.getElementById("search-results");
+
+  // Index every heading plus its following prose, so a query can match body
+  // text rather than only titles.
+  var index = order.map(function (h) {
+    var text = "";
+    var el = h.nextElementSibling;
+    while (el && !/^H[234]$/.test(el.tagName)) {
+      text += " " + el.textContent;
+      el = el.nextElementSibling;
+    }
+    var clone = h.cloneNode(true);
+    var a = clone.querySelector(".anchor");
+    if (a) a.remove();
+    var title = clone.textContent.trim();
+    return {
+      id: h.id,
+      title: title,
+      level: h.tagName,
+      haystack: (title + " " + text).toLowerCase()
+    };
+  });
+
+  // Nearest enclosing h2, for the breadcrumb line under each hit.
+  index.forEach(function (entry, i) {
+    var parent = "";
+    for (var j = i; j >= 0; j--) {
+      if (index[j].level === "H2") { parent = index[j].title; break; }
+    }
+    entry.parent = parent === entry.title ? "" : parent;
+  });
+
+  var selected = -1;
+
+  function closeResults() {
+    results.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    selected = -1;
+  }
+
+  function render(hits) {
+    results.innerHTML = "";
+    if (!hits.length) {
+      var empty = document.createElement("p");
+      empty.className = "search__empty";
+      empty.textContent = "No matches.";
+      results.appendChild(empty);
+    } else {
+      hits.forEach(function (hit, i) {
+        var a = document.createElement("a");
+        a.className = "search__hit";
+        a.href = "#" + hit.id;
+        a.setAttribute("role", "option");
+        a.setAttribute("aria-selected", i === 0 ? "true" : "false");
+        var t = document.createElement("span");
+        t.className = "search__hit-title";
+        t.textContent = hit.title;
+        a.appendChild(t);
+        if (hit.parent) {
+          var s = document.createElement("span");
+          s.className = "search__hit-sec";
+          s.textContent = hit.parent;
+          a.appendChild(s);
+        }
+        a.addEventListener("click", function () { closeResults(); input.blur(); });
+        results.appendChild(a);
+      });
+      selected = 0;
+    }
+    results.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function search(q) {
+    var needle = q.trim().toLowerCase();
+    if (needle.length < 2) { closeResults(); return; }
+    var terms = needle.split(/\s+/);
+    var hits = index.filter(function (e) {
+      return terms.every(function (t) { return e.haystack.indexOf(t) !== -1; });
+    });
+    // Title matches first, they are almost always what was meant.
+    hits.sort(function (a, b) {
+      var at = a.title.toLowerCase().indexOf(terms[0]) !== -1 ? 0 : 1;
+      var bt = b.title.toLowerCase().indexOf(terms[0]) !== -1 ? 0 : 1;
+      return at - bt;
+    });
+    render(hits.slice(0, 12));
+  }
+
+  if (input) {
+    input.addEventListener("input", function () { search(input.value); });
+    input.addEventListener("focus", function () { if (input.value.trim().length >= 2) search(input.value); });
+
+    input.addEventListener("keydown", function (e) {
+      var hits = Array.prototype.slice.call(results.querySelectorAll(".search__hit"));
+      if (e.key === "Escape") { closeResults(); input.blur(); return; }
+      if (!hits.length) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        hits[selected] && hits[selected].setAttribute("aria-selected", "false");
+        selected = e.key === "ArrowDown"
+          ? (selected + 1) % hits.length
+          : (selected - 1 + hits.length) % hits.length;
+        hits[selected].setAttribute("aria-selected", "true");
+        hits[selected].scrollIntoView({ block: "nearest" });
+      } else if (e.key === "Enter" && selected >= 0) {
+        e.preventDefault();
+        hits[selected].click();
+        window.location.hash = hits[selected].getAttribute("href");
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".search")) closeResults();
+    });
+
+    // "/" focuses search, the convention on every docs site worth using.
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    });
+  }
+
+  /* ---------- Copy the whole reference as markdown, for an LLM ---------- */
+  var mdBtn = document.getElementById("copy-md");
+  if (mdBtn) {
+    var mdLabel = mdBtn.innerHTML;
+    mdBtn.addEventListener("click", function () {
+      mdBtn.disabled = true;
+      mdBtn.textContent = "Fetching\u2026";
+      fetch(mdBtn.getAttribute("data-src"))
+        .then(function (r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.text();
+        })
+        .then(function (text) {
+          return navigator.clipboard.writeText(text).then(function () {
+            mdBtn.textContent = "Copied " + Math.round(text.length / 1024) + " kB";
+            mdBtn.classList.add("btn--done");
+          });
+        })
+        .catch(function () {
+          mdBtn.textContent = "Copy failed, open raw";
+        })
+        .then(function () {
+          setTimeout(function () {
+            mdBtn.disabled = false;
+            mdBtn.classList.remove("btn--done");
+            mdBtn.innerHTML = mdLabel;
+          }, 2200);
+        });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

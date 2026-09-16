@@ -120,15 +120,18 @@ Nine adapters ship today, all against real hardware:
 
 ## Documentation
 
-**[docs/REFERENCE.md](docs/REFERENCE.md)** is the full reference: every CLI
-command, flag, and exit code; the whole Python API; every schema field and
-enum value; the sensor-id grammar; the kind and unit vocabularies; the consent
-and streaming models; the complete error table; and the adapter interface for
-contributors.
+**[baselashraf.com/sensortap/docs](https://baselashraf.com/sensortap/docs/)** is
+the documentation site: search, a section index, an on-page table of contents,
+and a copy button on every command. It covers every CLI command, flag, and exit
+code; the whole Python API; every schema field and enum value; the sensor-id
+grammar; the kind and unit vocabularies; the consent and streaming models; the
+complete error table; and the adapter interface for contributors.
 
-It is one self-contained markdown file with no external includes, so you can
-paste the whole thing into an LLM context window and ask questions about
-sensortap without the model guessing at the API:
+The same content is also **[docs/REFERENCE.md](docs/REFERENCE.md)**, one
+self-contained markdown file with no external includes, so you can paste the
+whole thing into an LLM context window and ask questions about sensortap
+without the model guessing at the API. The docs site has a "Copy page for AI"
+button that does exactly this, or from a shell:
 
 ```sh
 # copy the entire reference to the clipboard (Windows)
@@ -143,7 +146,7 @@ wl-copy < docs/REFERENCE.md
 ```
 
 It is also served as plain text at
-**[baselashraf.com/sensortap/reference.md](https://baselashraf.com/sensortap/reference.md)**,
+[baselashraf.com/sensortap/reference.md](https://baselashraf.com/sensortap/reference.md),
 so an agent with web access can fetch it directly.
 
 Other docs: [privacy.md](docs/privacy.md) for the consent model in prose,

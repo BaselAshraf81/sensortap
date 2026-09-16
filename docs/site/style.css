@@ -268,6 +268,22 @@ code, kbd { font-family: var(--font-mono); }
 }
 .button--primary:hover { background: var(--white); border-color: var(--white); }
 
+/* `button` elements need the type/cursor reset that anchors get for free. */
+button.button {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+button.button[disabled] {
+  cursor: default;
+  opacity: 0.65;
+}
+button.button[disabled]:hover {
+  background: var(--yellow);
+  color: var(--black);
+  border-color: var(--yellow);
+}
+
 .fineprint { font-size: 0.82rem; color: var(--grey); max-width: 40ch; }
 
 /* --- Data page (the real sensortap list output) --------------------------- */
