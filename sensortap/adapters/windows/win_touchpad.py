@@ -4,11 +4,15 @@
 Verified WinRT API surface (winsdk==1.0.0b10, Python 3.12, checked
 interactively against the installed package rather than assumed):
 
-- ``winsdk.windows.devices.input`` (**not** ``humaninterfacedevice`` --
-  that module only exposes generic ``HidDevice``/report classes with no
-  pointer-classification surface at all, so it was not used here) exposes
-  ``PointerDevice``, ``PointerDeviceType`` (``MOUSE``, ``PEN``, ``TOUCH``)
-  and ``TouchCapabilities``.
+- ``winsdk.windows.devices.input`` exposes ``PointerDevice``,
+  ``PointerDeviceType`` (``MOUSE``, ``PEN``, ``TOUCH``) and
+  ``TouchCapabilities``.
+- ``winsdk.windows.devices.humaninterfacedevice`` exposes ``HidDevice``,
+  whose ``get_device_selector(usage_page, usage_id)`` builds an AQS query
+  for a HID **usage page / usage** pair. This *is* a device-classification
+  surface, and it is the standardised one: an earlier version of this
+  docstring claimed the module had "no pointer-classification surface at
+  all", which was wrong and cost this adapter a real bug (see below).
 - ``PointerDevice.get_pointer_devices()`` returns a **synchronous**, plain
   list of `PointerDevice` device objects -- this is `DeviceInformation`-
   style metadata enumeration (each object exposes only properties already
@@ -17,52 +21,101 @@ interactively against the installed package rather than assumed):
   `supported_usages`), not a device handle. No `open()`/`activate()`-style
   call exists on `PointerDevice` at all, so calling this during `discover()`
   does not violate the "no device handles during discovery" rule (Req 9.4).
-- **There is no precision-touchpad-specific capability flag anywhere in
-  this surface.** Windows' own "is this a Precision Touchpad" distinction
-  (as shown in Settings > Devices > Touchpad) is a Human Input Device
-  top-level-collection / driver capability historically surfaced only via
-  registry (`HKLM\\SYSTEM\\CurrentControlSet\\Services\\...\\Parameters\\
-  PrecisionTouchPad`) or a vendor/PTP-specific WMI class -- not via any
-  WinRT API. This was verified by inspecting `dir()` on every class in
-  `winsdk.windows.devices.input` and `winsdk.windows.devices.
-  humaninterfacedevice`: no member of either module distinguishes a
-  precision touchpad from any other pointing device.
-- What **is** available and load-bearing here: a `PointerDevice` whose
-  `pointer_device_type == PointerDeviceType.TOUCH` **and**
-  `is_integrated is True` is, on every laptop this was checked against,
-  the built-in touchpad's digitizer (a discrete external touchscreen also
-  reports `TOUCH` but `is_integrated == False`; a mouse reports `MOUSE`).
-  This is a documented best-effort heuristic, not a verified "this is a
-  PTP-certified touchpad" signal -- Windows does not expose that distinction
-  through any API reachable from `winsdk`. The two touchpad-family sensors
-  below are built from this heuristic and are honest about its limits in
-  their `id`s and this docstring; they do not claim to detect "precision"
-  touchpad capability specifically, only "an integrated touch pointer
-  device exists," which this module's constants and comments call the
-  proxy it actually is.
+Detection uses two independent paths, unioned, because neither is
+sufficient alone.
+
+**Path 1 (primary): HID usage page.** A Windows Precision Touchpad is
+*defined* by the HID specification as a device exposing usage page
+``0x0D`` (Digitizer) with usage ``0x05`` (Touch Pad).
+``HidDevice.get_device_selector(0x0D, 0x05)`` fed to
+``DeviceInformation.find_all_async`` asks the OS for exactly that, with no
+vendor knowledge involved. Usage ``0x04`` is Touch Screen and ``0x02`` is
+Pen, so the same mechanism *separates* a touchpad from a touchscreen or a
+pen digitizer rather than conflating them. This is enumeration, not
+acquisition: `find_all_async` returns `DeviceInformation` metadata the OS
+already holds and opens no device handle, so it is legal during
+`discover()` (Req 9.4).
+
+**Path 2 (fallback, retained): integrated touch `PointerDevice`.** A
+`PointerDevice` whose `pointer_device_type == PointerDeviceType.TOUCH`
+**and** `is_integrated is True`. This was the original sole detection
+path. It is kept because it is the only path that also yields a real
+`max_contacts` value, and because it may succeed on a machine where HID
+interface enumeration is restricted.
+
+**Why both, and what the union fixes.** Path 2 alone produced a false
+negative on real hardware (verified on a Dell G3 3779). That laptop's
+touchpad exposes *two* HID top-level collections, and `PointerDevice`
+surfaced only the first:
+
+- ``HID\\DELL0886&Col01`` -- Generic Desktop / Mouse (usage page 0x01,
+  usage 0x02)
+- ``HID\\DELL0886&Col02`` -- Digitizer / Touch Pad (usage page 0x0D,
+  usage 0x05)
+
+`PointerDevice.get_pointer_devices()` returned exactly one device on that
+machine: `type=MOUSE`, `is_integrated=False`, `max_contacts=1`, advertising
+Generic Desktop X/Y usages only -- i.e. Col01, indistinguishable by any
+field from an actual USB mouse. The touchpad's *identity* lives in Col02,
+which `PointerDevice` never exposed at all. So the touchpad was
+undiscoverable through Path 2 by construction, not by heuristic weakness.
+Path 1 finds Col02 directly.
+
+Two paths deliberately *not* used, and why:
+
+- **The ``PrecisionTouchPad`` registry key.** It records that the
+  touchpad settings UI is available, which is a driver/settings fact, not
+  a device-presence fact. It survives the device being disabled or
+  removed, so it reports touchpads that are not there.
+- **A PnP hardware-id list (``ACPI\\DELL0886`` and friends).** That is a
+  vendor allowlist. It would work on the maintainer's laptop and on no
+  other model, which is the precise failure mode this fix exists to
+  remove.
 - `TouchCapabilities` (a different, older, non-`PointerDevice` class) has
   only two properties, `touch_present` and `contacts` (the max simultaneous
   contact count across *all* touch input on the system, not scoped to the
-  touchpad specifically) -- confirmed via `dir()`. `PointerDevice.
-  max_contacts` is the equivalent value scoped to one specific device, and
-  is preferred here for that reason when an integrated touch pointer
-  device is found.
+  touchpad specifically) -- confirmed via `dir()`. It is not used as a
+  contact-count source: on the Dell G3 above it reports
+  `touch_present=0, contacts=0` while a touchpad is demonstrably present,
+  so it tracks touchscreen-style touch input rather than touchpads.
+  `PointerDevice.max_contacts` is the equivalent value scoped to one
+  specific device, and is the only contact-count source used here.
+- **`max_contacts` is not reachable through Path 1.** The
+  `DeviceInformation` property set returned for a HID interface carries
+  only shell metadata (`System.ItemNameDisplay`,
+  `System.Devices.DeviceInstanceId`, icons, `InterfaceEnabled`,
+  `IsDefault`) -- enumerated and confirmed. A maximum-contacts figure lives
+  in the HID report descriptor, which requires *opening* the device to
+  parse, and opening a device during `discover()` is forbidden (Req 9.4).
+  So when only Path 1 finds the touchpad, the contact count is genuinely
+  unknown and is reported `ABSENT` rather than guessed at -- presence and
+  contact count are separate sensors precisely so one can be known while
+  the other is not.
+- **Device names from HID enumeration are never read.** On the machine
+  above, `DeviceInformation.name` for the touchpad's HID collections is the
+  *hostname* (`WIN-D9FBFB1Q4IF`), not a product name. This adapter counts
+  matching devices and reads no name or instance-path field, so no machine
+  identifier can reach a `SensorInfo`, a `Reading`, or `sensortap doctor`
+  output.
 
 Three sensors are emitted, all `kind = "touchpad"` (confirmed present in
 `schema/kinds.py`'s `KIND_VOCABULARY`):
 
-1. ``touchpad.win-ptp.0``: the "integrated touch pointer device found"
-   proxy described above, modelled as a `scalar` 1.0/0.0 presence flag
-   (same convention as `win_radio.py`'s Bluetooth-presence sensor, reused
-   here for consistency across the Windows adapter family).
-   `Availability.PRESENT` when at least one such device is enumerated,
-   `Availability.ABSENT` otherwise. `requires_consent = False`: a
+1. ``touchpad.win-ptp.0``: touchpad presence, modelled as a `scalar`
+   1.0/0.0 flag (same convention as `win_radio.py`'s Bluetooth-presence
+   sensor, reused here for consistency across the Windows adapter family).
+   `Availability.PRESENT` when *either* detection path finds a touchpad,
+   `Availability.ABSENT` when neither does. `requires_consent = False`: a
    yes/no capability flag carries no personal information.
-2. ``touchpad.win-contacts.0``: the enumerated integrated touch device's
-   `max_contacts` as a `scalar` reading, unitless (a count).
-   `Availability.PRESENT` only when the same integrated touch device is
-   found (its `max_contacts` is metadata, not a live finger count -- no
-   HID input report is opened or read); `Availability.ABSENT` otherwise.
+2. ``touchpad.win-contacts.0``: the maximum simultaneous contact count as a
+   `scalar` reading, unitless (a count). This is device metadata, not a
+   live finger count -- no HID input report is opened or read.
+   `Availability.PRESENT` only when Path 2 supplied a real `max_contacts`;
+   `Availability.ABSENT` when the touchpad was found only through Path 1
+   (count unknown, see above) or not found at all. A touchpad that is
+   `PRESENT` on sensor 1 while sensor 2 is `ABSENT` is therefore an
+   expected, meaningful state: "there is a touchpad, and its contact
+   count is not obtainable without opening it."
    `requires_consent = False`: a static maximum-contacts capability number,
    not a live gesture/finger-position stream.
 3. ``touchpad.win-capimg.0``: the raw capacitive touch image (the 2D
@@ -95,6 +148,7 @@ enumerating multiple pointer devices per sensor.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import ClassVar
 
@@ -119,6 +173,15 @@ _CAPACITIVE_IMAGE_ID = "touchpad.win-capimg.0"
 #: Bound for the pointer-device enumeration query, mirroring the shared
 #: WinRT read bound (Req 13.3).
 _QUERY_TIMEOUT_MS = 2000
+
+#: HID usage page 0x0D is "Digitizer" and usage 0x05 within it is
+#: "Touch Pad", per the USB-IF HID Usage Tables. This pair is the
+#: standardised definition of a Windows Precision Touchpad and carries no
+#: vendor knowledge. Usage 0x04 (Touch Screen) and 0x02 (Pen) are
+#: deliberately *not* matched, so a touchscreen or pen digitizer is not
+#: mistaken for a touchpad.
+_HID_USAGE_PAGE_DIGITIZER = 0x0D
+_HID_USAGE_TOUCH_PAD = 0x05
 
 #: Illustrative-only placeholder shape for the never-obtainable capacitive
 #: image (see module docstring): a plausible small touchpad sensing grid
@@ -166,6 +229,101 @@ def _find_integrated_touch_pointer_device():
     return None
 
 
+def _run_async(coro_factory):
+    """Bridge a `winsdk` awaitable to synchronous code via `asyncio.run`,
+    bounded at `_QUERY_TIMEOUT_MS`.
+
+    Mirrors the identical shim in `winrt_audio.py`: `winsdk` types a WinRT
+    `IAsyncOperation` as *awaitable* but not as a `coroutine`, so
+    `asyncio.run()` needs a small local `async def` wrapper.
+    """
+
+    async def _shim():
+        return await asyncio.wait_for(
+            coro_factory(), timeout=_QUERY_TIMEOUT_MS / 1000.0
+        )
+
+    return asyncio.run(_shim())
+
+
+def _enumerate_touchpad_hid_collections():
+    """Return the `DeviceInformation` records for every HID
+    Digitizer/Touch Pad collection the OS knows about (detection Path 1).
+
+    Enumeration only (Req 9.4): `DeviceInformation.find_all_async` returns
+    metadata the OS already holds and opens no device handle.
+    """
+
+    from winsdk.windows.devices.enumeration import DeviceInformation
+    from winsdk.windows.devices.humaninterfacedevice import HidDevice
+
+    selector = HidDevice.get_device_selector(
+        _HID_USAGE_PAGE_DIGITIZER, _HID_USAGE_TOUCH_PAD
+    )
+
+    def _enumerate():
+        return DeviceInformation.find_all_async(selector, [])
+
+    return _run_async(_enumerate)
+
+
+def _any_enabled(devices) -> bool:
+    """Return whether any enumerated device is enabled.
+
+    Reads `is_enabled` and nothing else. In particular it never reads
+    `DeviceInformation.name`: for these system-claimed HID collections
+    Windows reports the machine's *hostname* there rather than a product
+    name (see module docstring), and no machine identifier may reach a
+    `SensorInfo`, a `Reading`, or `sensortap doctor` output. Kept as a
+    separate pure function so that obligation is directly testable.
+    """
+
+    return any(device.is_enabled for device in devices)
+
+
+def _touchpad_hid_collection_present() -> bool:
+    """Return whether at least one enabled HID Digitizer/Touch Pad
+    collection exists (detection Path 1)."""
+
+    return _any_enabled(_enumerate_touchpad_hid_collections())
+
+
+def _detect_touchpad() -> tuple[bool, int | None]:
+    """Return `(present, max_contacts)` for this machine's touchpad.
+
+    Unions the two detection paths described in the module docstring, in
+    the order that yields the most information: Path 2 first, because it is
+    the only one that also carries a real `max_contacts`; Path 1 second,
+    because it is the only one that finds a touchpad whose digitizer
+    collection `PointerDevice` does not surface.
+
+    `max_contacts` is `None` when a touchpad was found but its contact
+    count is not obtainable without opening the device.
+
+    Each path is guarded independently: a WinRT surface missing or raising
+    on some Windows build must not make the other path unreachable, and
+    must not fail discovery for the whole adapter.
+    """
+
+    try:
+        device = _find_integrated_touch_pointer_device()
+    except Exception:  # noqa: BLE001 - a broken path degrades, never propagates
+        device = None
+    if device is not None:
+        max_contacts = getattr(device, "max_contacts", None)
+        return True, max_contacts
+
+    try:
+        if _touchpad_hid_collection_present():
+            # Found through the digitizer collection, which carries no
+            # contact count -- honest None rather than a guessed number.
+            return True, None
+    except Exception:  # noqa: BLE001 - see above
+        pass
+
+    return False, None
+
+
 class WindowsTouchpadAdapter:
     """Touchpad-family sensors on Windows: integrated-touch-pointer
     presence, its maximum contact count, and the (always unobtainable)
@@ -181,9 +339,7 @@ class WindowsTouchpadAdapter:
     )
 
     def discover(self) -> tuple[SensorInfo, ...]:
-        device = _find_integrated_touch_pointer_device()
-        present = device is not None
-        max_contacts = getattr(device, "max_contacts", None) if device else None
+        present, max_contacts = _detect_touchpad()
 
         ptp_info = SensorInfo(
             schema_version=SCHEMA_VERSION,
@@ -224,7 +380,15 @@ class WindowsTouchpadAdapter:
             source=("win-contacts",),
             vendor=None,
             part_number=None,
-            availability=Availability.PRESENT if present else Availability.ABSENT,
+            # PRESENT only when a real count was obtained. A touchpad found
+            # through the HID digitizer path has no reachable contact count
+            # (see module docstring), so this stays ABSENT while the
+            # presence sensor above is PRESENT.
+            availability=(
+                Availability.PRESENT
+                if max_contacts is not None
+                else Availability.ABSENT
+            ),
         )
 
         capacitive_image_info = SensorInfo(
@@ -276,19 +440,22 @@ class WindowsTouchpadAdapter:
         raise KeyError(f"unknown sensor id for WindowsTouchpadAdapter: {sensor_id!r}")
 
     def _read_ptp_presence(self) -> Reading:
-        device = _find_integrated_touch_pointer_device()
+        present, _ = _detect_touchpad()
         return Reading(
             id=_PTP_PRESENCE_ID,
             t_mono=time.monotonic(),
             t_wall=time.time(),
-            values=(1.0 if device is not None else 0.0,),
+            values=(1.0 if present else 0.0,),
             seq=0,
             status=Status.OK,
         )
 
     def _read_contacts(self) -> Reading:
-        device = _find_integrated_touch_pointer_device()
-        if device is None:
+        _, max_contacts = _detect_touchpad()
+        if max_contacts is None:
+            # Either no touchpad, or one found through the HID digitizer
+            # path whose contact count is not obtainable without opening
+            # it. Both are honestly "unavailable", never a guessed number.
             return Reading(
                 id=_CONTACTS_ID,
                 t_mono=time.monotonic(),
@@ -301,7 +468,7 @@ class WindowsTouchpadAdapter:
             id=_CONTACTS_ID,
             t_mono=time.monotonic(),
             t_wall=time.time(),
-            values=(float(device.max_contacts),),
+            values=(float(max_contacts),),
             seq=0,
             status=Status.OK,
         )

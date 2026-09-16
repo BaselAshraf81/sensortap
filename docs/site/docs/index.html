@@ -1261,14 +1261,15 @@ my_widget = <span class="tok-s">"my_package.adapter:MyWidgetAdapter"</span></cod
         <li><b>Motherboard and EC sensors.</b> Available only under an explicit opt-in, and absent entirely where no Ring&nbsp;0 driver is already present or no Super-IO chip is recognised.</li>
         <li><b>Adoption figures.</b> None exist to quote, and none are invented.</li>
         <li>
-          <b>Precision-touchpad detection on every laptop.</b> <code>win_touchpad</code>
-          identifies a touchpad through WinRT <code>PointerDevice</code>. On some machines —
-          verified on a Dell G3 3779 — the only reported <code>PointerDevice</code> says
-          <code>type=MOUSE</code>, <code>is_integrated=False</code>,
-          <code>max_contacts=1</code> and exposes Generic Desktop X/Y usages only, with no
-          field distinguishing it from a USB mouse. The adapter correctly reports no touchpad
-          and a real touchpad goes undiscovered. A fix needs a detection path WinRT does not
-          offer, so it is filed rather than guessed at.
+          <b>A touchpad's maximum contact count.</b> Touchpad presence is detected from the
+          HID usage tables — usage page <code>0x0D</code> (Digitizer), usage <code>0x05</code>
+          (Touch Pad) — which is vendor-neutral and separates a touchpad from a touchscreen
+          (<code>0x04</code>) or a pen (<code>0x02</code>). A maximum-contacts figure lives in
+          the HID report descriptor, and parsing it requires opening the device, which
+          <code>discover()</code> never does. Where WinRT's <code>PointerDevice</code> does not
+          also surface the touchpad, <code>touchpad.win-ptp.0</code> is <code>present</code>
+          while <code>touchpad.win-contacts.0</code> is <code>absent</code>: the touchpad
+          exists and its contact count is not obtainable without acquisition.
         </li>
         <li>
           <b>Correct behaviour on hardware the maintainer does not own.</b> Adapters are written

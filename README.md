@@ -259,20 +259,15 @@ to disk. Full detail: [docs/privacy.md](docs/privacy.md).
   small; the .NET helper is a separate, disclosed download behind
   `sensortap[hwmon]`.
 
-### Known issue: touchpads that look like mice
-
-`win_touchpad` identifies a precision touchpad through WinRT `PointerDevice`.
-On some laptops — verified on a Dell G3 3779 — the only reported
-`PointerDevice` says `type=MOUSE`, `is_integrated=False`, `max_contacts=1`, and
-exposes Generic Desktop X/Y usages only. There is no field in that record that
-distinguishes it from an actual USB mouse, so the adapter correctly reports no
-touchpad, and a real touchpad goes undiscovered.
-
-Fixing it needs a second detection path that WinRT doesn't offer: PnP
-enumeration (`ACPI\DELL0886` and friends) or the
-`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\PrecisionTouchPad` key. That's
-a new dependency surface and a design decision, not a patch, so it's filed
-rather than guessed at.
+- **A touchpad's maximum contact count isn't always reachable.** Presence is
+  detected from the HID spec — usage page `0x0D` (Digitizer), usage `0x05`
+  (Touch Pad) — which is vendor-neutral and also separates a touchpad from a
+  touchscreen (`0x04`) or a pen (`0x02`). A contact count, though, lives in the
+  HID report descriptor, and parsing that means *opening* the device, which
+  discovery never does. So on hardware where WinRT's `PointerDevice` doesn't
+  surface the touchpad, `touchpad.win-ptp.0` reports `present` while
+  `touchpad.win-contacts.0` reports `absent`. That pair is meaningful rather
+  than broken: there is a touchpad, and its contact count isn't free.
 
 ## Contributing
 
@@ -281,7 +276,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-211 tests, none requiring physical sensor hardware in the default run. See
+219 tests, none requiring physical sensor hardware in the default run. See
 [docs/contributing/adapter-guide.md](docs/contributing/adapter-guide.md) for
 writing a new adapter and [docs/schema.md](docs/schema.md) for the schema
 reference, generated straight from the code.
