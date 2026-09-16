@@ -155,7 +155,70 @@ def reference_adapter():
 def test_reference_adapter_passes_cleanly(reference_adapter):
     report = run_conformance_check(reference_adapter)
     assert report.passed, report.render()
-    assert len(report.checks) == 4
+    assert len(report.checks) == 5
+
+
+class _UnreachableBufferAdapter:
+    """Declares a `buffer` sensor but implements no `open_stream()`.
+
+    This is the exact shape of a defect that shipped in `winrt_camera`:
+    the registry routes `buffer` sensors only through `stream()`, so
+    `read()` raises `BlockPathRequiredError` and `stream()` raises
+    `UnsupportedOperationError`. The sensor is unreadable by any caller on
+    every machine, and every other conformance check passes it, because
+    the checks that exercise reading deliberately skip `buffer` records.
+    """
+
+    meta = AdapterMeta(
+        adapter_id="unreachable_buffer",
+        interface_version=ADAPTER_INTERFACE_VERSION,
+        supported_platforms=frozenset({"win32", "linux", "darwin"}),
+        read_only_declared=True,
+    )
+
+    def discover(self):
+        return (
+            SensorInfo(
+                schema_version=SCHEMA_VERSION,
+                id="microphone.unreachable.0",
+                kind="microphone",
+                dtype=Dtype.BUFFER,
+                unit=None,
+                channels=("mono",),
+                shape=(1024, 1),
+                range=None,
+                resolution=None,
+                rate_hz=RateSpec(default=None, min=None, max=None),
+                delivery=Delivery.PUSH,
+                derived=False,
+                requires_consent=True,
+                requires_elevation=False,
+                source=("unreachable",),
+                vendor=None,
+                part_number=None,
+                availability=Availability.PRESENT,
+            ),
+        )
+
+    def read(self, sensor_id: str):
+        raise KeyError(sensor_id)
+
+
+def test_buffer_sensor_without_open_stream_fails_reachability_check():
+    report = run_conformance_check(_UnreachableBufferAdapter())
+    assert not report.passed
+    check = next(c for c in report.checks if "reachable" in c.name)
+    assert not check.passed
+    assert "open_stream" in check.detail
+
+
+def test_reference_adapter_passes_reachability_check(reference_adapter):
+    """The reference adapter exposes a buffer sensor *and* implements
+    open_stream(), so it must pass -- guarding the new check against
+    flagging correct adapters."""
+    report = run_conformance_check(reference_adapter)
+    check = next(c for c in report.checks if "reachable" in c.name)
+    assert check.passed, check.detail
 
 
 def test_schema_violating_adapter_fails_schema_check():

@@ -40,20 +40,54 @@ def test_discover_does_not_reference_media_capture() -> None:
     assert "_find_all_video_capture_devices" in body
 
 
-def test_discover_returns_schema_valid_buffer_records() -> None:
+def test_discover_returns_reachable_frame_geometry_records() -> None:
+    """The camera reports frame geometry as a `matrix` of shape (1, 2).
+
+    Regression: this previously declared `dtype=buffer` with
+    `shape=(1080, 1920)` while implementing only `read()` and no
+    `open_stream()`, which made the sensor unreachable by any caller --
+    the registry routes `buffer` exclusively through `stream()`, so
+    `read()` raised `BlockPathRequiredError` and `stream()` raised
+    `UnsupportedOperationError`. The shape also promised 2,073,600 values
+    against a `read()` that returns 2.
+    """
+
     adapter = WindowsCameraAdapter()
     records = adapter.discover()
 
     for record in records:
         assert record.kind == "camera"
-        assert record.dtype is Dtype.BUFFER
+        assert record.dtype is Dtype.MATRIX
         assert record.requires_consent is True
-        assert len(record.shape) == 2
+        assert record.shape == (1, 2)
+        assert record.channels == ("height", "width")
         assert record.availability in (
             Availability.PRESENT,
             Availability.PERMISSION_DENIED,
         )
         assert record.id.startswith("camera.winrt.")
+
+
+def test_camera_is_reachable_through_read() -> None:
+    """`read()` on a discovered camera must be reachable: it may degrade
+    to `Status.UNAVAILABLE` when the device refuses a frame (documented as
+    happening on real hardware), but it must not raise a routing error
+    that leaves the sensor unreadable by every path."""
+
+    from sensortap.schema.enums import Status
+
+    adapter = WindowsCameraAdapter()
+    records = adapter.discover()
+
+    if not records:
+        pytest.skip("no camera present on this machine")
+
+    reading = adapter.read(records[0].id)
+    assert reading.id == records[0].id
+    assert reading.status in (Status.OK, Status.UNAVAILABLE)
+    if reading.status is Status.OK:
+        # Declared shape (1, 2) has product 2; the implementation must agree.
+        assert len(reading.values) == 2
 
 
 def test_discover_completes_quickly() -> None:

@@ -348,6 +348,73 @@ radio-signal.win-radio.0</code></pre>
       </div>
       <p>Exits with code <code>3</code> if the id is not in the current enumeration.</p>
 
+      <h3 id="cli-doctor"><code>doctor</code><a class="anchor" href="#cli-doctor" aria-label="Link to doctor">#</a></h3>
+      <p>
+        Run the shipped conformance check against every adapter that loaded on this machine,
+        and report the result. Takes no positional arguments.
+      </p>
+      <div class="code code--sh">
+        <pre><code><span class="tok-p">$</span> sensortap doctor
+<span class="tok-p">$</span> sensortap doctor --include-elevated
+<span class="tok-p">$</span> sensortap doctor --json</code></pre>
+      </div>
+      <p>
+        The test suite can only prove the adapter contract holds for hardware the maintainer
+        owns. <code>doctor</code> moves that same check to your machine, where the hardware
+        actually is. Several shipped defects were structurally present on every machine but
+        only observable on one carrying the relevant sensor, so this is the intended first
+        step for any bug report.
+      </p>
+      <p>
+        Each adapter is run through the five checks in
+        <a href="#conformance">the conformance check</a>: schema compliance of discovered
+        records, <code>Sensor_Id</code> stability across consecutive <code>discover()</code>
+        calls, reachability of every discovered sensor through <code>read()</code> or
+        <code>open_stream()</code>, adapter-level error behaviour, and the declared read-only
+        obligation.
+      </p>
+      <div class="code">
+        <pre><code>environment
+  sensortap: 0.1.0
+  python: 3.12.10
+  platform: Windows-10-10.0.19045-SP0
+  machine: AMD64
+  elevated: True
+
+adapters
+  [ok  ] winrt_motion
+  [ok  ] winrt_audio
+  [FAIL] winrt_light
+           adapter-level error behaviour: read() returned a Reading for a
+           sensor_id this adapter does not own
+
+9/10 adapters passed  failed: 1</code></pre>
+      </div>
+      <p>
+        On failure the plain-text output appends a GitHub issue URL with title and body already
+        filled in from the run. The environment block reports version, Python version, platform
+        string, machine architecture and elevation state, and deliberately carries no hostname,
+        no username and no sensor ids, because it is built to be pasted in public.
+      </p>
+      <p><code>--json</code> emits:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>environment</code></td><td>object</td><td><code>sensortap</code>, <code>schema</code>, <code>adapter_interface</code>, <code>python</code>, <code>platform</code>, <code>machine</code>, <code>elevated</code>.</td></tr>
+            <tr><td><code>adapters</code></td><td>array</td><td>One entry per loaded adapter: <code>adapter_id</code>, <code>passed</code>, and <code>checks</code> (each <code>name</code>, <code>passed</code>, <code>detail</code>).</td></tr>
+            <tr><td><code>summary</code></td><td>object</td><td><code>adapters_checked</code>, <code>adapters_passed</code>, <code>adapters_failed</code>.</td></tr>
+            <tr><td><code>report_url</code></td><td>string</td><td>Present only when at least one adapter failed; the prefilled issue URL.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Exits <code>0</code> when every adapter passes and <code>7</code> when any adapter
+        fails. Code <code>7</code> is deliberately distinct from the generic <code>1</code>:
+        "sensortap itself broke" and "sensortap works and found a real contract violation on
+        your hardware" are different outcomes, and CI needs to tell them apart.
+      </p>
+
       <h3 id="cli-options">Global options<a class="anchor" href="#cli-options" aria-label="Link to Global options">#</a></h3>
 
       <div class="tablewrap">
@@ -953,6 +1020,7 @@ keystroke-timing   radio-signal       humidity           pressure</code></pre>
             <tr><td><code>4</code></td><td>Sensor unavailable or device open failure</td><td><code>SensorUnavailableError</code>, <code>DeviceOpenError</code>, <code>StreamBusyError</code>, <code>BlockPathRequiredError</code>, <code>UnsupportedOperationError</code></td></tr>
             <tr><td><code>5</code></td><td>Missing consent</td><td><code>ConsentError</code>, <code>InvalidConsentRequestError</code></td></tr>
             <tr><td><code>6</code></td><td>Read timeout</td><td><code>ReadTimeoutError</code></td></tr>
+            <tr><td><code>7</code></td><td><a href="#cli-doctor"><code>doctor</code></a> found adapters that fail the conformance contract</td><td>— (a finding, not an exception)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1136,6 +1204,14 @@ my_widget = <span class="tok-s">"my_package.adapter:MyWidgetAdapter"</span></cod
         <pre><code><span class="tok-p">$</span> python -m sensortap.adapters.conformance my_package.adapter:MyWidgetAdapter</code></pre>
       </div>
       <p>Exits <code>0</code> when the report passes, <code>1</code> when it fails, <code>2</code> on a usage or construction error.</p>
+      <p>
+        It runs five checks: schema compliance of discovered records, <code>Sensor_Id</code>
+        stability across consecutive <code>discover()</code> calls, reachability of every
+        discovered sensor through <code>read()</code> or <code>open_stream()</code>,
+        adapter-level error behaviour, and the declared read-only obligation.
+        <a href="#cli-doctor"><code>sensortap doctor</code></a> runs the same check against
+        every adapter loaded on the current machine.
+      </p>
 
       <h3 id="load-sequence">Load sequence<a class="anchor" href="#load-sequence" aria-label="Link to Load sequence">#</a></h3>
       <ol>
@@ -1184,6 +1260,23 @@ my_widget = <span class="tok-s">"my_package.adapter:MyWidgetAdapter"</span></cod
         <li><b>Unit semantics.</b> <code>unit</code> is validated as a token, not as a UCUM expression.</li>
         <li><b>Motherboard and EC sensors.</b> Available only under an explicit opt-in, and absent entirely where no Ring&nbsp;0 driver is already present or no Super-IO chip is recognised.</li>
         <li><b>Adoption figures.</b> None exist to quote, and none are invented.</li>
+        <li>
+          <b>Precision-touchpad detection on every laptop.</b> <code>win_touchpad</code>
+          identifies a touchpad through WinRT <code>PointerDevice</code>. On some machines —
+          verified on a Dell G3 3779 — the only reported <code>PointerDevice</code> says
+          <code>type=MOUSE</code>, <code>is_integrated=False</code>,
+          <code>max_contacts=1</code> and exposes Generic Desktop X/Y usages only, with no
+          field distinguishing it from a USB mouse. The adapter correctly reports no touchpad
+          and a real touchpad goes undiscovered. A fix needs a detection path WinRT does not
+          offer, so it is filed rather than guessed at.
+        </li>
+        <li>
+          <b>Correct behaviour on hardware the maintainer does not own.</b> Adapters are written
+          against the schema contract and the test suite proves it holds for the hardware
+          available. It cannot prove anything about hardware it has never seen.
+          <a href="#cli-doctor"><code>sensortap doctor</code></a> exists so the check runs where
+          the hardware is.
+        </li>
       </ul>
 
       <footer class="foot">

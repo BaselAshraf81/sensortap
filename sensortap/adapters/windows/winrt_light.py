@@ -57,6 +57,10 @@ class WindowsLightAdapter:
 
     def __init__(self) -> None:
         self._sensor: object | None = None
+        #: The Sensor_Id this adapter actually reported from `discover()`.
+        #: `read()` must verify against it -- see the guard in `read()` for
+        #: why ignoring it was a real bug and not a harmless omission.
+        self._sensor_id: str | None = None
 
     def discover(self) -> tuple[SensorInfo, ...]:
         info, sensor = query_winrt_sensor_class(
@@ -74,9 +78,23 @@ class WindowsLightAdapter:
             derived=False,
         )
         self._sensor = sensor
+        self._sensor_id = info.id
         return (info,)
 
     def read(self, sensor_id: str) -> Reading:
+        # This adapter previously ignored `sensor_id` completely and read
+        # whatever `self._sensor` happened to be. On a machine with no
+        # ambient light sensor that looked harmless (every id returned
+        # `unavailable`), which is why it survived review and the
+        # conformance check on such machines. On a machine that *does*
+        # expose a LightSensor it is a correctness bug: `read()` would
+        # return the real lux value stamped with whatever id the caller
+        # passed, including an id belonging to another adapter entirely.
+        # Every sibling adapter raises KeyError for an id it does not own;
+        # this now does the same.
+        if self._sensor_id is None or sensor_id != self._sensor_id:
+            raise KeyError(f"unknown sensor id for WindowsLightAdapter: {sensor_id!r}")
+
         sensor = self._sensor
 
         def _read() -> Reading:

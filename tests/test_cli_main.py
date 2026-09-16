@@ -14,6 +14,7 @@ import pytest
 
 from sensortap.cli.main import (
     EXIT_CONSENT,
+    EXIT_DOCTOR_FINDINGS,
     EXIT_SUCCESS,
     EXIT_UNKNOWN_SENSOR,
     EXIT_USAGE,
@@ -209,6 +210,63 @@ def test_list_json_summary_reports_elevation_state(capsys):
     payload = json.loads(out)
     assert "elevated" in payload["summary"]
     assert isinstance(payload["summary"]["elevated"], bool)
+
+
+def test_doctor_runs_and_reports_every_loaded_adapter(capsys):
+    code, out, err = _run_cli(["doctor"], capsys)
+    # Exit 0 when every adapter passes, EXIT_DOCTOR_FINDINGS when any fails.
+    # Both are successful runs of the command itself.
+    assert code in (EXIT_SUCCESS, EXIT_DOCTOR_FINDINGS)
+    assert "environment" in out
+    assert "adapters" in out
+    assert "reference" in out
+    assert "adapters passed" in out
+
+
+def test_doctor_json_shape(capsys):
+    import json
+
+    code, out, err = _run_cli(["doctor", "--json"], capsys)
+    assert code in (EXIT_SUCCESS, EXIT_DOCTOR_FINDINGS)
+    payload = json.loads(out)
+    assert "environment" in payload
+    assert "adapters" in payload
+    assert payload["summary"]["adapters_checked"] == len(payload["adapters"])
+    # A failing run must hand the user somewhere to report it.
+    if payload["summary"]["adapters_failed"]:
+        assert payload["report_url"].startswith("https://github.com/")
+    for entry in payload["adapters"]:
+        assert "adapter_id" in entry
+        assert isinstance(entry["passed"], bool)
+
+
+def test_doctor_environment_carries_no_identifying_information(capsys):
+    """The doctor block is meant to be pasted into a public issue, so it
+    must not carry a hostname, a username, or any sensor id (a Sensor_Id is
+    a hash of a persistent hardware identifier)."""
+    import getpass
+    import json
+    import platform
+
+    code, out, err = _run_cli(["doctor", "--json"], capsys)
+    facts = json.loads(out)["environment"]
+    blob = json.dumps(facts).lower()
+
+    assert platform.node().lower() not in blob
+    try:
+        assert getpass.getuser().lower() not in blob
+    except Exception:  # pragma: no cover - getuser can fail in odd environments
+        pass
+    assert "reference.0" not in blob
+
+
+def test_doctor_findings_exit_code_is_distinct_from_internal_error():
+    """"the tool broke" and "the tool works and your adapters are broken"
+    must not share an exit code, or a CI step cannot tell them apart."""
+    from sensortap.cli.main import EXIT_UNEXPECTED
+
+    assert EXIT_DOCTOR_FINDINGS != EXIT_UNEXPECTED
+    assert EXIT_DOCTOR_FINDINGS != EXIT_SUCCESS
 
 
 def test_read_privacy_sensitive_sensor_with_consent_succeeds(capsys):

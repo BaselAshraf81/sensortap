@@ -25,6 +25,27 @@ def test_discover_record_has_correct_kind_shape_and_unit() -> None:
     assert info.derived is False
 
 
+def test_read_rejects_a_sensor_id_this_adapter_does_not_own() -> None:
+    """Regression: `read()` ignored `sensor_id` entirely and returned
+    whatever `self._sensor` was.
+
+    On a machine with no ambient light sensor that looked harmless (every
+    id returned `unavailable`), which is exactly why it survived both
+    review and the conformance check here. On a machine that *does* expose
+    a `LightSensor`, `read()` would have returned the real lux value
+    stamped with whatever id the caller passed, including an id belonging
+    to a different adapter.
+    """
+
+    import pytest
+
+    adapter = WindowsLightAdapter()
+    adapter.discover()
+
+    with pytest.raises(KeyError):
+        adapter.read("this.is.nonsense")
+
+
 def test_read_on_absent_sensor_reports_unavailable() -> None:
     adapter = WindowsLightAdapter()
     (info,) = adapter.discover()

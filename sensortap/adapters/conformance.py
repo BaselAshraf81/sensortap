@@ -221,6 +221,70 @@ def _check_error_behaviour(adapter: Adapter) -> CheckResult:
     return CheckResult("adapter-level error behaviour", True, "; ".join(detail_parts))
 
 
+def _check_every_sensor_is_reachable(adapter: Adapter) -> CheckResult:
+    """Every discovered sensor must be readable through at least one path.
+
+    This closes a real hole that shipped an unreachable sensor. The
+    registry routes by `dtype`: a `buffer` sensor is rejected by `read()`
+    with `BlockPathRequiredError` and can only be reached through
+    `stream()`, which raises `UnsupportedOperationError` when the owning
+    adapter has no `open_stream()`. An adapter that declares `buffer` but
+    implements only `read()` therefore has a sensor that **no caller can
+    ever read by any means** -- and every other check here passed it,
+    because both `_check_schema_compliance` and `_check_error_behaviour`
+    deliberately skip `buffer` records (they are correct to skip them for
+    *reading*; nothing was checking they were reachable at all).
+
+    This was found live on the shipped `winrt_camera` adapter, whose
+    camera record was schema-valid, id-stable, and completely unreadable:
+    `read()` -> BlockPathRequiredError, `stream()` ->
+    UnsupportedOperationError. The class of bug is hardware-shape
+    dependent in how visible it is, but not in whether it exists, so
+    catching it mechanically here protects third-party adapters on
+    hardware the sensortap authors will never own.
+    """
+
+    try:
+        records = list(adapter.discover())
+    except Exception as exc:  # noqa: BLE001
+        return CheckResult(
+            "every discovered sensor is reachable",
+            False,
+            f"discover() raised {exc!r}",
+        )
+
+    has_open_stream = callable(getattr(adapter, "open_stream", None))
+    has_read = callable(getattr(adapter, "read", None))
+
+    unreachable: list[str] = []
+    for record in records:
+        if record.dtype == Dtype.BUFFER:
+            if not has_open_stream:
+                unreachable.append(
+                    f"{record.id!r} declares dtype 'buffer' but the adapter "
+                    "implements no open_stream(): read() is rejected by the "
+                    "registry (BlockPathRequiredError) and stream() raises "
+                    "UnsupportedOperationError, so this sensor cannot be read "
+                    "by any caller"
+                )
+        elif not has_read:
+            unreachable.append(
+                f"{record.id!r} is non-buffer but the adapter implements no read()"
+            )
+
+    if unreachable:
+        return CheckResult(
+            "every discovered sensor is reachable",
+            False,
+            "; ".join(unreachable),
+        )
+    return CheckResult(
+        "every discovered sensor is reachable",
+        True,
+        f"{len(records)} record(s) reachable through read() or open_stream()",
+    )
+
+
 def _check_read_only_declaration(adapter: Adapter) -> CheckResult:
     """Check the one mechanically-verifiable part of Req 15.7/15.8.
 
@@ -269,6 +333,7 @@ def run_conformance_check(adapter: Adapter) -> ConformanceReport:
     checks = (
         _check_schema_compliance(adapter, adapter_id),
         _check_sensor_id_stability(adapter),
+        _check_every_sensor_is_reachable(adapter),
         _check_error_behaviour(adapter),
         _check_read_only_declaration(adapter),
     )

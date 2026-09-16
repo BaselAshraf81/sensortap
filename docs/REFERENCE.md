@@ -186,6 +186,53 @@ sensortap inspect accel.reference.0 --json
 
 Exits with code 3 if the id is not in the current enumeration.
 
+#### `doctor`
+
+Run the shipped conformance check against every adapter that loaded on this
+machine, and report the result.
+
+```sh
+sensortap doctor
+sensortap doctor --include-elevated
+sensortap doctor --json
+```
+
+Takes no positional arguments.
+
+The test suite can only prove the adapter contract holds for hardware the
+maintainer owns. `doctor` moves that same check to the user's machine, where the
+hardware actually is. It is the intended first step for any bug report: several
+shipped defects were structurally present everywhere but only observable on a
+machine carrying the relevant sensor.
+
+Each adapter is run through the five checks in
+`sensortap.adapters.conformance.run_conformance_check` — schema compliance of
+discovered records, `Sensor_Id` stability across consecutive `discover()` calls,
+reachability of every discovered sensor through `read()` or `open_stream()`,
+adapter-level error behaviour, and the declared read-only obligation.
+
+Plain-text output prints an `environment` block, then an `adapters` block with
+one `[ok  ]`/`[FAIL]` line per adapter and the failing check details indented
+beneath each failure, then a summary line. On
+failure it appends a GitHub issue URL with title and body prefilled from the
+run. The environment block carries version, Python version, platform string,
+machine architecture and elevation state, and deliberately carries no hostname,
+no username and no sensor ids, because it is built to be pasted in public.
+
+`--json` emits:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `environment` | object | `sensortap`, `schema`, `adapter_interface`, `python`, `platform`, `machine`, `elevated`. |
+| `adapters` | array | One entry per loaded adapter: `adapter_id`, `passed`, and `checks` (each `name`, `passed`, `detail`). |
+| `summary` | object | `adapters_checked`, `adapters_passed`, `adapters_failed`. |
+| `report_url` | string | Present only when at least one adapter failed; the prefilled issue URL. |
+
+Exits **0** when every adapter passes and **7** when any adapter fails. Code 7
+is deliberately distinct from the generic **1**: "sensortap itself broke" and
+"sensortap works and found a real contract violation on your hardware" are
+different outcomes, and CI needs to distinguish them.
+
 ### Global options
 
 | Flag | Type | Default | Applies to | Description |
@@ -623,6 +670,7 @@ Frozen; part of the CLI's contract.
 | `4` | Sensor unavailable or device open failure | `SensorUnavailableError`, `DeviceOpenError`, `StreamBusyError`, `BlockPathRequiredError`, `UnsupportedOperationError` |
 | `5` | Missing consent | `ConsentError`, `InvalidConsentRequestError` |
 | `6` | Read timeout | `ReadTimeoutError` |
+| `7` | `doctor` found adapters that fail the conformance contract | — (a finding, not an exception) |
 
 ### Exception reference
 
@@ -765,6 +813,13 @@ access to sensortap's repository:
 python -m sensortap.adapters.conformance my_package.adapter:MyWidgetAdapter
 ```
 
+It runs five checks: schema compliance of discovered records, `Sensor_Id`
+stability across consecutive `discover()` calls, reachability of every
+discovered sensor through `read()` or `open_stream()`, adapter-level error
+behaviour, and the declared read-only obligation. `sensortap doctor` runs the
+same check against every adapter loaded on the current machine — see
+[CLI → `doctor`](#doctor).
+
 ### Load sequence
 
 1. Entry points are discovered and sorted by `(distribution_name, entry_point_name)` for a deterministic load order.
@@ -812,3 +867,5 @@ Records returned by `discover()` pass through six ordered steps:
 - **Unit semantics.** `unit` is validated as a token, not as a UCUM expression.
 - **Motherboard and EC sensors.** Available only under an explicit opt-in, and absent entirely where no Ring 0 driver is already present or no Super-IO chip is recognised.
 - **Adoption figures.** None exist to quote, and none are invented.
+- **Precision-touchpad detection on every laptop.** `win_touchpad` identifies a touchpad through WinRT `PointerDevice`. On some machines — verified on a Dell G3 3779 — the only reported `PointerDevice` says `type=MOUSE`, `is_integrated=False`, `max_contacts=1` and exposes Generic Desktop X/Y usages only, with no field distinguishing it from a USB mouse. The adapter correctly reports no touchpad and a real touchpad goes undiscovered. A fix needs a detection path WinRT does not offer (PnP enumeration or the `PrecisionTouchPad` registry key), which is a new dependency surface, so it is filed rather than guessed at.
+- **Correct behaviour on hardware the maintainer does not own.** Adapters are written against the schema contract and the test suite proves it holds for the hardware available. It cannot prove anything about hardware it has never seen. `sensortap doctor` exists so that the check runs where the hardware is.

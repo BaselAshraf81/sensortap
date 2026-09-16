@@ -1,10 +1,20 @@
 """CLI argument parsing, command dispatch and exit codes (Req 12.1, 12.9).
 
-Four subcommands -- ``list``, ``read``, ``stream``, ``inspect`` -- built on
-stdlib ``argparse``. No command or an unrecognised one prints usage naming
-all four (Req 12.1).
+Five subcommands -- ``list``, ``read``, ``stream``, ``inspect``, ``doctor``
+-- built on stdlib ``argparse``. No command or an unrecognised one prints
+usage naming them (Req 12.1).
 
-Exit codes (design.md, "Exit codes" -- frozen, part of the CLI's contract):
+``doctor`` exists because of a pattern this project kept hitting: every
+defect found so far was structurally present on every machine but only
+*observable* on hardware carrying the relevant sensor. An unreachable
+camera, a light adapter that ignored the sensor id it was handed, and a
+rate ceiling that silently dropped every microphone all passed review and
+CI on the author's laptop. ``doctor`` ships the Conformance_Check to the
+user and runs it against the adapters actually loaded on their machine, so
+hardware the author will never own gets tested anyway, and hands them a
+prefilled issue link when something fails.
+
+Exit codes (design.md, "Exit codes" -- part of the CLI's contract):
 
 | Code | Failure class                                   | Exceptions                                            |
 | ---- | ------------------------------------------------ | ------------------------------------------------------|
@@ -15,7 +25,12 @@ Exit codes (design.md, "Exit codes" -- frozen, part of the CLI's contract):
 | 4    | Sensor unavailable or device open failure        | SensorUnavailableError, DeviceOpenError, StreamBusyError |
 | 5    | Missing consent                                  | ConsentError, InvalidConsentRequestError              |
 | 6    | Read timeout                                     | ReadTimeoutError                                      |
+| 7    | `doctor` ran fine and found a failing adapter    | -- (a findings code, not an error)                     |
 | 1    | Anything else                                    | unexpected internal error                             |
+
+Code 7 is deliberately distinct from 1: "the tool broke" and "the tool
+works and is telling you your adapters are broken" are different outcomes,
+and a CI step needs to tell them apart.
 
 Output discipline (Req 12.9): everything destined for stdout is buffered in
 memory and flushed only once the whole command has succeeded, so a command
@@ -32,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import os
 import sys
 from typing import Sequence
@@ -60,7 +76,10 @@ from sensortap.cli.format_json import (
     format_sensor_info_json,
 )
 
-_COMMANDS = ("list", "read", "stream", "inspect")
+_COMMANDS = ("list", "read", "stream", "inspect", "doctor")
+
+#: Where `doctor` points a user when it finds a failing adapter.
+_ISSUES_URL = "https://github.com/BaselAshraf81/sensortap/issues/new"
 
 EXIT_SUCCESS = 0
 EXIT_UNEXPECTED = 1
@@ -69,6 +88,12 @@ EXIT_UNKNOWN_SENSOR = 3
 EXIT_UNAVAILABLE = 4
 EXIT_CONSENT = 5
 EXIT_TIMEOUT = 6
+#: `doctor` ran successfully but found at least one adapter failing its
+#: conformance check. Its own code rather than an overload of
+#: EXIT_UNEXPECTED (1): "the tool broke" and "the tool works and is
+#: telling you your adapters are broken" are different outcomes, and a CI
+#: step needs to distinguish them.
+EXIT_DOCTOR_FINDINGS = 7
 
 
 class _UsageError(Exception):
@@ -166,6 +191,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("sensor_id")
     _add_global_options(inspect_parser)
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help=(
+            "run the conformance check against every adapter loaded on this "
+            "machine and report anything broken"
+        ),
+    )
+    _add_global_options(doctor_parser)
 
     return parser
 
@@ -368,11 +402,195 @@ def _run_inspect(registry: Registry, args: argparse.Namespace, out: io.StringIO)
     out.write(format_sensor_info_detail(info))
 
 
+def _environment_facts() -> dict:
+    """Machine facts worth having in a bug report, and nothing more.
+
+    Deliberately excludes anything identifying: no hostname, no username,
+    no device serial numbers, no sensor ids (a Sensor_Id is a hash of a
+    persistent hardware identifier, and this output is meant to be pasted
+    into a public issue).
+    """
+
+    import platform
+
+    from sensortap.registry.privilege import is_elevated
+    from sensortap.schema.version import SCHEMA_VERSION
+    from sensortap.adapters.protocol import ADAPTER_INTERFACE_VERSION
+
+    try:
+        from importlib.metadata import version
+
+        sensortap_version = version("sensortap")
+    except Exception:  # noqa: BLE001 - running from a source tree without metadata
+        sensortap_version = "unknown"
+
+    return {
+        "sensortap": sensortap_version,
+        "schema": SCHEMA_VERSION,
+        "adapter_interface": ADAPTER_INTERFACE_VERSION,
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "elevated": is_elevated(),
+    }
+
+
+def _issue_url(failures: list[dict], facts: dict) -> str:
+    """Build a prefilled GitHub issue URL for the failures `doctor` found.
+
+    The whole point of this command is that most sensortap bugs are
+    invisible on the maintainer's own hardware -- every defect found so
+    far was structurally present on every machine but only *observable* on
+    hardware with the relevant sensor. Shipping the check to users turns
+    each install into a test on hardware the author will never own, and
+    this URL removes the friction between "my machine reports a problem"
+    and "the maintainer knows about it".
+    """
+
+    import urllib.parse
+
+    adapters = ", ".join(sorted({f["adapter_id"] for f in failures}))
+    title = f"doctor: conformance failure in {adapters}"
+
+    lines = ["Reported by `sensortap doctor`.", "", "## Environment", ""]
+    for key, value in facts.items():
+        lines.append(f"- {key}: `{value}`")
+    lines += ["", "## Failing checks", ""]
+    for failure in failures:
+        lines.append(f"### `{failure['adapter_id']}`")
+        for check in failure["failed_checks"]:
+            lines.append(f"- **{check['name']}**: {check['detail']}")
+        lines.append("")
+    lines += [
+        "## Hardware",
+        "",
+        "<!-- Please add: laptop/desktop model, and which sensors you expected"
+        " to see. That context is what the maintainer cannot get from the"
+        " output above. -->",
+    ]
+
+    body = "\n".join(lines)
+    query = urllib.parse.urlencode({"title": title, "body": body})
+    return f"{_ISSUES_URL}?{query}"
+
+
+def _run_doctor(
+    registry: Registry, args: argparse.Namespace, out: io.StringIO
+) -> int | None:
+    """Run the shipped Conformance_Check against every adapter loaded on
+    this machine.
+
+    This is the honest answer to "how do we know an adapter works on
+    hardware we do not have": we do not, so the check ships to the user
+    and runs against their real devices. Every defect found in this
+    project so far -- an unreachable camera, a light adapter that ignored
+    the sensor id it was handed, a rate ceiling that silently dropped
+    every microphone -- was present on all machines but only *observable*
+    on hardware carrying the relevant sensor.
+
+    Reaches into `registry._loaded_adapters` deliberately: `doctor` needs
+    the live adapter instances the registry actually loaded (with their
+    real `setup()` already run and helper processes already started), and
+    the documented public surface is intentionally five methods plus
+    `shutdown()`. This is intra-package access from the CLI that ships
+    alongside the registry, not an addition to the public API.
+    """
+
+    from sensortap.adapters.conformance import run_conformance_check
+
+    facts = _environment_facts()
+    results: list[dict] = []
+
+    for loaded in registry._loaded_adapters:
+        adapter = loaded.instance
+        adapter_id = adapter.meta.adapter_id
+        try:
+            report = run_conformance_check(adapter)
+            checks = [
+                {"name": c.name, "passed": c.passed, "detail": c.detail}
+                for c in report.checks
+            ]
+            results.append(
+                {"adapter_id": adapter_id, "passed": report.passed, "checks": checks}
+            )
+        except Exception as exc:  # noqa: BLE001 - one bad adapter never stops the sweep
+            results.append(
+                {
+                    "adapter_id": adapter_id,
+                    "passed": False,
+                    "checks": [
+                        {
+                            "name": "conformance check ran",
+                            "passed": False,
+                            "detail": f"the check itself raised: {exc!r}",
+                        }
+                    ],
+                }
+            )
+
+    failures = [
+        {
+            "adapter_id": r["adapter_id"],
+            "failed_checks": [c for c in r["checks"] if not c["passed"]],
+        }
+        for r in results
+        if not r["passed"]
+    ]
+
+    if args.json:
+        payload = {
+            "environment": facts,
+            "adapters": results,
+            "summary": {
+                "adapters_checked": len(results),
+                "adapters_passed": sum(1 for r in results if r["passed"]),
+                "adapters_failed": len(failures),
+            },
+        }
+        if failures:
+            payload["report_url"] = _issue_url(failures, facts)
+        out.write(json.dumps(payload) + "\n")
+        return EXIT_DOCTOR_FINDINGS if failures else None
+
+    out.write("environment\n")
+    for key, value in facts.items():
+        out.write(f"  {key}: {value}\n")
+    out.write("\nadapters\n")
+    for result in results:
+        mark = "ok  " if result["passed"] else "FAIL"
+        out.write(f"  [{mark}] {result['adapter_id']}\n")
+        for check in result["checks"]:
+            if not check["passed"]:
+                out.write(f"           {check['name']}: {check['detail']}\n")
+
+    passed = sum(1 for r in results if r["passed"])
+    out.write(
+        f"\n{passed}/{len(results)} adapters passed"
+        f"  failed: {len(failures)}\n"
+    )
+
+    if failures:
+        out.write(
+            "\nThese are bugs worth reporting. Most sensortap defects are "
+            "invisible on the author's own hardware, so a report from a "
+            "machine with different sensors is the only way they get found.\n"
+            "\nOpen a prefilled issue:\n"
+            f"{_issue_url(failures, facts)}\n"
+        )
+        return EXIT_DOCTOR_FINDINGS
+
+    hint = _elevation_hint(registry.backend_status())
+    if hint is not None:
+        out.write(f"\n{hint}\n")
+    return None
+
+
 _DISPATCH = {
     "list": _run_list,
     "read": _run_read,
     "stream": _run_stream,
     "inspect": _run_inspect,
+    "doctor": _run_doctor,
 }
 
 
@@ -421,7 +639,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             registry_kwargs["discovery_timeout_ms"] = args.discovery_timeout
         registry = Registry(**registry_kwargs)
         handler = _DISPATCH[args.command]
-        handler(registry, args, out)
+        # A handler returns None for the ordinary success path, or an
+        # explicit exit code when the command's own outcome carries one.
+        # Only `doctor` uses this today: it is a lint-style command whose
+        # findings must be able to fail a CI step, while still having
+        # genuinely succeeded at running.
+        handler_exit_code = handler(registry, args, out)
     except (InvalidTimeoutError, MalformedSensorIdError, _UsageError) as exc:
         sys.stderr.write(f"{exc}\n")
         return EXIT_USAGE
@@ -444,7 +667,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Success: flush the buffered stdout now, and only now.
     sys.stdout.write(out.getvalue())
     sys.stdout.flush()
-    return EXIT_SUCCESS
+    return EXIT_SUCCESS if handler_exit_code is None else handler_exit_code
 
 
 if __name__ == "__main__":

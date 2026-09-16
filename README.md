@@ -97,6 +97,7 @@ sensortap list
 sensortap read accel.reference.0
 sensortap inspect temp.hwmon.2aed4545974396bc
 sensortap stream microphone.reference.0 --consent microphone.reference.0
+sensortap doctor
 ```
 
 **From Python:**
@@ -111,6 +112,56 @@ with sensortap.consent(["microphone.winrt.0"]):   # camera/mic/touchpad-image ne
     for block in sensortap.stream("microphone.winrt.0"):
         ...
 ```
+
+### Check your hardware: `sensortap doctor`
+
+Every adapter is written against a schema contract, and the test suite proves
+that contract holds for the hardware the author owns. It cannot prove anything
+about the hardware he doesn't. Real defects have shipped that were structurally
+present on every machine but only *observable* on a machine carrying the
+relevant sensor: a microphone rate ceiling that silently dropped every mic, a
+channel-count mismatch that silently dropped every camera, an ambient-light
+adapter that ignored the requested sensor id.
+
+So the contract check ships to you. `sensortap doctor` runs the same conformance
+check the test suite runs, against every adapter that actually loaded on *your*
+machine:
+
+```sh
+sensortap doctor                     # check what's visible now
+sensortap doctor --include-elevated   # from an elevated terminal, includes hwmon
+sensortap doctor --json               # machine-readable, for CI
+```
+
+It prints the environment facts that matter (OS, Python version, architecture,
+elevation state), then one line per adapter:
+
+```
+environment
+  sensortap: 0.1.0
+  python: 3.12.10
+  platform: Windows-10-10.0.19045-SP0
+  machine: AMD64
+  elevated: True
+
+adapters
+  [ok  ] winrt_motion
+  [ok  ] winrt_audio
+  [FAIL] winrt_light
+           adapter-level error behaviour: read() returned a Reading for a
+           sensor_id this adapter does not own
+
+9/10 adapters passed  failed: 1
+```
+
+On failure it also prints a GitHub issue URL with the title and body already
+filled in from the run, so reporting a hardware-specific bug is one click and
+no typing. The environment block deliberately carries no hostname, no username
+and no sensor ids — it's built to be pasted in public.
+
+`doctor` exits **7** when adapters fail their contract, kept distinct from the
+generic **1**: "the tool crashed" and "the tool works and your hardware found a
+real bug" are different signals, and CI should be able to tell them apart.
 
 ## How it's built
 
@@ -208,6 +259,21 @@ to disk. Full detail: [docs/privacy.md](docs/privacy.md).
   small; the .NET helper is a separate, disclosed download behind
   `sensortap[hwmon]`.
 
+### Known issue: touchpads that look like mice
+
+`win_touchpad` identifies a precision touchpad through WinRT `PointerDevice`.
+On some laptops — verified on a Dell G3 3779 — the only reported
+`PointerDevice` says `type=MOUSE`, `is_integrated=False`, `max_contacts=1`, and
+exposes Generic Desktop X/Y usages only. There is no field in that record that
+distinguishes it from an actual USB mouse, so the adapter correctly reports no
+touchpad, and a real touchpad goes undiscovered.
+
+Fixing it needs a second detection path that WinRT doesn't offer: PnP
+enumeration (`ACPI\DELL0886` and friends) or the
+`HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\PrecisionTouchPad` key. That's
+a new dependency surface and a design decision, not a patch, so it's filed
+rather than guessed at.
+
 ## Contributing
 
 ```sh
@@ -215,7 +281,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-197 tests, none requiring physical sensor hardware in the default run. See
+211 tests, none requiring physical sensor hardware in the default run. See
 [docs/contributing/adapter-guide.md](docs/contributing/adapter-guide.md) for
 writing a new adapter and [docs/schema.md](docs/schema.md) for the schema
 reference, generated straight from the code.

@@ -36,14 +36,34 @@ here since guessing these wrong fails silently):
   **Resolution: this adapter reports camera `SensorInfo` records from
   `DeviceInformation` metadata ALONE at discovery time** (name/id/
   availability), honoring Req 9.4 over the task text's literal framing.
-  `shape` is populated with a documented illustrative placeholder,
-  `(1080, 1920)` (`[height, width]`, common 1080p), rather than a value
-  queried from the device -- real format discovery is deferred to first
-  actual `read()` (Req 7.9's "no device handle until first actual access
-  under a grant" already establishes that lazy-open is expected; this
-  applies the same reasoning to format discovery specifically). This is
-  the "honest choice" the task text itself anticipates as the resolution
-  to this exact tension.
+  Real format discovery is deferred to first actual `read()` (Req 7.9's
+  "no device handle until first actual access under a grant" already
+  establishes that lazy-open is expected; this applies the same reasoning
+  to format discovery specifically). This is the "honest choice" the task
+  text itself anticipates as the resolution to this exact tension.
+
+  **What this sensor therefore is, precisely:** a `matrix`-dtype sensor of
+  shape `(1, 2)` whose single `read()` opens the camera, grabs one
+  best-effort preview frame, and returns that frame's `(height, width)` in
+  pixels. It reports frame *geometry*, not pixel content. That is a real,
+  useful capability (it proves the device opens and delivers frames, and
+  reports the resolution actually negotiated) and it is stated plainly
+  rather than dressed up as image capture.
+
+  This corrects a shipped defect worth recording, because the shape of the
+  mistake is more instructive than the mistake: the record previously
+  declared `dtype=buffer` with `shape=(1080, 1920)` while implementing
+  only `read()` and no `open_stream()`. The registry routes `buffer`
+  sensors exclusively through the stream path, so `read()` returned
+  `BlockPathRequiredError` and `stream()` returned
+  `UnsupportedOperationError` -- the sensor was unreachable by any caller
+  on every machine, not just this one. The declared shape also promised
+  2,073,600 values against a `read()` that returned 2. Every other
+  conformance check passed it, because the checks that exercise reading
+  deliberately skip `buffer` records. `adapters/conformance.py` now carries
+  an explicit reachability check so this class of defect fails
+  mechanically for any adapter, including third-party ones running on
+  hardware the sensortap authors will never own.
 
 - On first `read()`, this adapter constructs a fresh `MediaCapture`,
   initializes it against the target device id, and (verified
@@ -130,23 +150,32 @@ _SOURCE_ID = "winrt"
 #: before this adapter closes it (Req 7.9).
 _IDLE_CLOSE_MS = 2000
 
-#: Illustrative placeholder shape reported at discovery time, `[height,
-#: width]` per the task's dtype/shape convention. Not queried from the
-#: device -- see module docstring's Req 9.4 discussion for why real format
-#: enumeration is deferred to first `read()`.
-_PLACEHOLDER_SHAPE = (1080, 1920)
+#: What one `read()` of this sensor actually returns: the captured frame's
+#: geometry, as a 1x2 matrix of `(height, width)` in pixels. **Not** the
+#: frame's pixel content -- see this module's docstring, which documents at
+#: length why a real pixel-readout pipeline is out of scope here.
+#:
+#: This replaces an earlier `dtype=buffer` + `shape=(1080, 1920)`
+#: declaration that made the sensor unreachable by any caller: the registry
+#: routes `buffer` sensors exclusively through `stream()`, this adapter
+#: implements no `open_stream()`, so `read()` failed with
+#: `BlockPathRequiredError` and `stream()` failed with
+#: `UnsupportedOperationError`. The shape also claimed 2,073,600 values
+#: while `read()` returned 2, so the declaration was doubly wrong.
+#: `matrix` + `(1, 2)` is what the implemented behaviour honestly is, and
+#: it is reachable through the ordinary `read()` path.
+#:
+#: When a real pixel pipeline lands, this becomes `buffer` with the
+#: device's true negotiated resolution *and* an `open_stream()`
+#: implementation -- both together, never one without the other, which is
+#: now enforced mechanically by `adapters/conformance.py`'s reachability
+#: check rather than left to review.
+_FRAME_GEOMETRY_SHAPE = (1, 2)
 
-#: Channel names for the placeholder shape's columns (Req 2.7's
-#: channel-count rule: for a 2-dimensional shape, channel count must equal
-#: the shape's last dimension). This adapter originally declared
-#: `channels=()` against a 2D shape, which the schema validator's
-#: channel-count check rejects (it expects `len(channels) == shape[-1]`
-#: regardless of dtype) -- every camera sensor was silently dropped from
-#: the registry's output as a result, never surfacing as an error anywhere
-#: a caller could see it. Named generically, mirroring
-#: `win_touchpad.py`'s `_CAPACITIVE_IMAGE_CHANNELS`, since no real
-#: per-column semantics exist for an illustrative placeholder shape.
-_PLACEHOLDER_CHANNELS = tuple(f"col-{i}" for i in range(_PLACEHOLDER_SHAPE[-1]))
+#: Channel names for `_FRAME_GEOMETRY_SHAPE`'s columns (Req 2.7: for a
+#: 2-dimensional shape, channel count must equal the shape's last
+#: dimension).
+_FRAME_GEOMETRY_CHANNELS = ("height", "width")
 
 
 class WindowsCameraAdapter:
@@ -210,10 +239,10 @@ class WindowsCameraAdapter:
                     schema_version=SCHEMA_VERSION,
                     id=sensor_id,
                     kind=_KIND,
-                    dtype=Dtype.BUFFER,
+                    dtype=Dtype.MATRIX,
                     unit=None,
-                    channels=_PLACEHOLDER_CHANNELS,
-                    shape=_PLACEHOLDER_SHAPE,
+                    channels=_FRAME_GEOMETRY_CHANNELS,
+                    shape=_FRAME_GEOMETRY_SHAPE,
                     range=None,
                     resolution=None,
                     rate_hz=RateSpec(default=None, min=None, max=None),
@@ -320,11 +349,13 @@ class WindowsCameraAdapter:
             await media_capture.stop_preview_async()
             # A full pixel-buffer readout (via SoftwareBitmap.copy_to_buffer /
             # BitmapBuffer) is the "materially larger undertaking" this
-            # module's docstring flags as out of scope; the reading below
-            # carries the captured frame's dimensions as its values, which
-            # is schema-valid (a `buffer`-dtype `Reading.values` need only
-            # match the sensor's declared shape) without a real pixel
-            # pipeline.
+            # module's docstring flags as out of scope. The reading below
+            # carries the captured frame's (height, width), which is exactly
+            # what this sensor declares: a matrix of shape (1, 2) with
+            # channels ("height", "width"). Two values against a declared
+            # shape whose product is 2 -- the declaration and the
+            # implementation agree, which is the property that was broken
+            # before.
             return Reading(
                 id=sensor_id,
                 t_mono=now,
