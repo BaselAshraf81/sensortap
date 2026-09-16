@@ -12,7 +12,11 @@ logic, not the real named-pipe transport or the real .NET helper.
 from __future__ import annotations
 
 from sensortap.adapters.windows.helper.protocol import HelperResponse, HelperSensorRecord
-from sensortap.adapters.windows.hwmon_bridge import WindowsHardwareMonitorAdapter
+from sensortap.adapters.windows.hwmon_bridge import (
+    MOTHERBOARD_OPTIN_ENV_VAR,
+    WindowsHardwareMonitorAdapter,
+    motherboard_optin_enabled,
+)
 from sensortap.registry.ids import instance_hash
 from sensortap.schema.enums import Availability, Dtype, Status
 
@@ -193,6 +197,61 @@ def test_read_returns_unavailable_on_helper_failure_response() -> None:
 
     assert reading.status is Status.UNAVAILABLE
     assert reading.values == ()
+
+
+def test_power_and_current_sensor_types_are_mapped() -> None:
+    """`Power` and `Current` are in the adapter's kind map, and the C#
+    helper now collects them too (they were in the Python map from the
+    start but missing from HardwareMonitor.cs's WantedTypes, so every
+    power/current sensor the library reported was silently dropped before
+    reaching the registry -- 5 real CPU/GPU power sensors on the dev
+    machine)."""
+
+    fake = _FakeHelperClient(state="running")
+    power = _record(id_="/intelcpu/0/power/0", sensor_type="Power", value=15.5)
+    current = _record(id_="/intelcpu/0/current/0", sensor_type="Current", value=2.5)
+    fake.set_list_response(
+        HelperResponse(ok=True, sensors=[power, current], error=None)
+    )
+
+    adapter = WindowsHardwareMonitorAdapter(helper_client=fake)
+    records = adapter.discover()
+
+    by_kind = {r.kind: r for r in records}
+    assert set(by_kind) == {"power", "current"}
+    assert by_kind["power"].unit == "W"
+    assert by_kind["current"].unit == "A"
+
+
+def test_motherboard_optin_reads_the_environment_variable() -> None:
+    assert motherboard_optin_enabled({}) is False
+    assert motherboard_optin_enabled({MOTHERBOARD_OPTIN_ENV_VAR: ""}) is False
+    assert motherboard_optin_enabled({MOTHERBOARD_OPTIN_ENV_VAR: "0"}) is False
+    assert motherboard_optin_enabled({MOTHERBOARD_OPTIN_ENV_VAR: "no"}) is False
+    for truthy in ("1", "true", "TRUE", "yes", "on", " 1 "):
+        assert motherboard_optin_enabled({MOTHERBOARD_OPTIN_ENV_VAR: truthy}) is True
+
+
+def test_motherboard_records_get_a_distinct_source_qualifier() -> None:
+    """A sensor that only exists because of the motherboard/EC opt-in
+    carries `hwmon-mb` in its Sensor_Id and `source`, so a pasted id from an
+    opted-in run is distinguishable from a default one. Ordinary CPU/GPU
+    records keep the plain `hwmon` qualifier so ids already in use by
+    callers do not shift when the opt-in is given."""
+
+    fake = _FakeHelperClient(state="running")
+    cpu = _record(id_="/intelcpu/0/temperature/0", hardware_type="Cpu")
+    superio = _record(id_="/lpc/nct6798d/fan/0", sensor_type="Fan", hardware_type="SuperIO")
+    fake.set_list_response(HelperResponse(ok=True, sensors=[cpu, superio], error=None))
+
+    adapter = WindowsHardwareMonitorAdapter(helper_client=fake)
+    records = adapter.discover()
+
+    by_kind = {r.kind: r for r in records}
+    assert by_kind["temp"].source == ("hwmon",)
+    assert by_kind["temp"].id.startswith("temp.hwmon.")
+    assert by_kind["fan"].source == ("hwmon-mb",)
+    assert by_kind["fan"].id.startswith("fan.hwmon-mb.")
 
 
 def test_read_accepts_a_collision_disambiguation_suffix() -> None:

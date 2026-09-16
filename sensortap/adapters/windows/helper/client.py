@@ -120,9 +120,16 @@ class HelperClient:
         *,
         helper_executable_path: Path | str = DEFAULT_HELPER_EXECUTABLE_PATH,
         readiness_timeout_ms: int = READINESS_TIMEOUT_MS,
+        enable_motherboard: bool = False,
     ) -> None:
         self._helper_executable_path = Path(helper_executable_path)
         self._readiness_timeout_ms = readiness_timeout_ms
+        # Off by default. When True, `--motherboard` is added to the helper's
+        # argv, opting that process in to motherboard/Super-IO/EC monitoring.
+        # See `helper_src/HardwareMonitor.cs`'s constructor doc for what that
+        # unlocks and what it risks; this client only forwards the user's
+        # explicit choice, it never decides on their behalf.
+        self._enable_motherboard = enable_motherboard
 
         self._lock = threading.Lock()
         self._state: HelperState = "not_running"
@@ -200,9 +207,13 @@ class HelperClient:
 
         self._pipe_handle = pipe_handle
 
+        argv = [str(self._helper_executable_path), pipe_name]
+        if self._enable_motherboard:
+            argv.append("--motherboard")
+
         try:
             process = subprocess.Popen(
-                [str(self._helper_executable_path), pipe_name],
+                argv,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

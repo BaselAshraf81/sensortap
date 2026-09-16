@@ -89,6 +89,16 @@ def test_global_options_work_before_and_after_subcommand():
     assert after.json is True
 
 
+def test_include_motherboard_defaults_off_and_parses_either_side():
+    """The motherboard/Super-IO/EC opt-in must never be on unless asked
+    for: that path can conflict with a vendor tool or another monitoring
+    app holding the same EC registers."""
+    parser = _build_parser()
+    assert parser.parse_args(["list"]).include_motherboard is False
+    assert parser.parse_args(["--include-motherboard", "list"]).include_motherboard is True
+    assert parser.parse_args(["list", "--include-motherboard"]).include_motherboard is True
+
+
 def test_list_plain_text_includes_backend_status_and_summary_line(capsys):
     code, out, err = _run_cli(["list"], capsys)
     assert code == EXIT_SUCCESS

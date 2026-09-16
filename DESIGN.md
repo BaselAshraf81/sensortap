@@ -96,6 +96,6 @@ consistent.
 ## Copy
 
 Plain and specific, matching this whole conversation's standing rule against
-invented claims. Every number on this page (86 sensors, 16 kinds, 9 Windows
+invented claims. Every number on this page (91 sensors, 16 kinds, 9 Windows
 adapters) is real, produced by running the actual CLI, and is re-verified
 before publish rather than typed from memory.

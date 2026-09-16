@@ -17,12 +17,18 @@ namespace SensortapHelper;
 /// helper which pipe to connect to, and a command-line argument is the
 /// simplest, most debuggable option):
 ///
-///     sensortap-helper.exe <pipe-name>
+///     sensortap-helper.exe <pipe-name> [--motherboard]
 ///
 /// where <pipe-name> is the short pipe name Python chose when it called
 /// CreateNamedPipe (e.g. "sensortap-<random>"), WITHOUT the "\\.\pipe\"
 /// prefix -- NamedPipeClientStream adds that prefix itself when given "."
 /// as the server name.
+///
+/// `--motherboard` opts this process in to motherboard/Super-IO/EC
+/// monitoring (see HardwareMonitor's constructor doc for why that is off by
+/// default and what it risks). Python passes it only when the user asked
+/// for it via `sensortap list --include-motherboard`. It is a positional-
+/// order-independent flag so the pipe name stays argv[0].
 ///
 /// Token handshake (per design.md's "Launch_Token handshake" section and
 /// task 8.2's decision):
@@ -52,11 +58,19 @@ public static class Program
     {
         if (args.Length < 1 || string.IsNullOrWhiteSpace(args[0]))
         {
-            Console.Error.WriteLine("usage: sensortap-helper.exe <pipe-name>");
+            Console.Error.WriteLine("usage: sensortap-helper.exe <pipe-name> [--motherboard]");
             return UsageErrorExitCode;
         }
 
         var pipeName = args[0];
+
+        // Opt-in only: absent flag means the safe default (no motherboard,
+        // Super-IO or EC access). Compared case-insensitively so a caller
+        // spelling it "--Motherboard" is not silently ignored, which would
+        // look like the flag working while changing nothing.
+        var enableMotherboard = args
+            .Skip(1)
+            .Any(a => string.Equals(a, "--motherboard", StringComparison.OrdinalIgnoreCase));
 
         string? token;
         try
@@ -137,7 +151,7 @@ public static class Program
         HardwareMonitor? monitor = null;
         try
         {
-            monitor = new HardwareMonitor();
+            monitor = new HardwareMonitor(enableMotherboard);
             monitor.Open();
 
             return RunLoop(reader, writer, monitor);

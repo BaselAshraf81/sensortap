@@ -121,6 +121,7 @@ exception, or an `ok=False`/missing-value response, straight to
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from typing import TYPE_CHECKING, ClassVar
@@ -177,6 +178,54 @@ _UNIT_BY_KIND: dict[str, str] = {
     "load": "%",
 }
 
+#: Environment variable carrying the user's motherboard/Super-IO/EC opt-in
+#: through to this adapter (Req 8.3's spirit, applied to a capability rather
+#: than a whole adapter).
+#:
+#: Why an environment variable rather than a constructor argument: the
+#: registry instantiates every adapter with no arguments
+#: (`registry/loading.py`'s `_instantiate_and_setup` calls `adapter_cls()`),
+#: and the `Adapter` Protocol deliberately has no per-adapter config channel
+#: -- Req 15.2 limits *acquisition* configuration to exactly `rate_hz` and
+#: `block_size`, which is a different thing from a load-time capability
+#: toggle. Adding a general adapter-config mechanism to the registry to carry
+#: one boolean would be a much larger interface change than this warrants.
+#: An environment variable is also the channel the helper subprocess would
+#: need anyway, and it stays visible/auditable in the process tree.
+#:
+#: Set by the CLI's `--include-motherboard` flag. Any of "1"/"true"/"yes"
+#: (case-insensitive) enables it; anything else, including unset, leaves the
+#: safe default off.
+MOTHERBOARD_OPTIN_ENV_VAR = "SENSORTAP_HWMON_MOTHERBOARD"
+
+#: Source-qualifier segment used instead of `_SOURCE_QUALIFIER` for sensors
+#: that only appear because the motherboard/EC opt-in was given. Keeping a
+#: distinct qualifier means a Sensor_Id itself records which capability set
+#: produced it, so a bug report pasted from an opted-in run is
+#: distinguishable from a default one without asking (Req 3.1's grammar
+#: allows any `[a-z0-9-]` segment, and this stays within it).
+_MOTHERBOARD_SOURCE_QUALIFIER = "hwmon-mb"
+
+#: LibreHardwareMonitorLib `HardwareType` members that only ever appear once
+#: the motherboard/controller groups are enabled. A record carrying one of
+#: these is attributed to the opt-in source qualifier above.
+_MOTHERBOARD_HARDWARE_TYPES = frozenset(
+    {"Motherboard", "SuperIO", "EmbeddedController", "Cooler"}
+)
+
+
+def motherboard_optin_enabled(env: object | None = None) -> bool:
+    """Whether the user opted in to motherboard/Super-IO/EC monitoring.
+
+    `env` is injectable for tests; it defaults to the real process
+    environment.
+    """
+
+    mapping = os.environ if env is None else env
+    raw = mapping.get(MOTHERBOARD_OPTIN_ENV_VAR, "")  # type: ignore[union-attr]
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
 #: LibreHardwareMonitorLib `HardwareType` member naming the one category
 #: that requires the Ring0 (WinRing0) kernel driver -- motherboard/Super-IO
 #: chip sensors. `HardwareMonitor.cs` (task 9.1) currently disables this
@@ -222,13 +271,27 @@ def _ring0_unavailable_reason(record: HelperSensorRecord) -> str:
     )
 
 
+def _source_qualifier_for(record: HelperSensorRecord) -> str:
+    """Pick the source-qualifier segment for one record.
+
+    Records that only exist because of the motherboard/EC opt-in get a
+    distinct qualifier so their provenance is legible in the Sensor_Id
+    itself; everything else keeps the ordinary `hwmon` qualifier, so ids
+    already in use by callers do not change when the opt-in is given.
+    """
+
+    if record.hardware_type in _MOTHERBOARD_HARDWARE_TYPES:
+        return _MOTHERBOARD_SOURCE_QUALIFIER
+    return _SOURCE_QUALIFIER
+
+
 def _sensor_id_for(record: HelperSensorRecord, kind: str) -> str:
     """Build the 3-segment Sensor_Id for one helper record, hashing the
     helper's persistent identifier per this module's documented
     reasoning (never a sensortap-derived probe-order index)."""
 
     qualifier = instance_hash(record.id)
-    return f"{kind}.{_SOURCE_QUALIFIER}.{qualifier}"
+    return f"{kind}.{_source_qualifier_for(record)}.{qualifier}"
 
 
 def _range_for(record: HelperSensorRecord) -> tuple[float, float] | None:
@@ -265,12 +328,16 @@ class WindowsHardwareMonitorAdapter:
         # `client.py` itself imports pywin32 unconditionally at module
         # scope since it is Windows-only and guarded by the package's
         # platform gate.
+        self._motherboard_enabled = motherboard_optin_enabled()
+
         if helper_client is not None:
             self._client = helper_client
         else:
             from sensortap.adapters.windows.helper.client import HelperClient
 
-            self._client = HelperClient()
+            self._client = HelperClient(
+                enable_motherboard=self._motherboard_enabled
+            )
         self._setup_called = False
         # Sensor_Id -> helper-reported id, populated by `discover()`, same
         # pattern as `winrt_camera.py`/`winrt_audio.py`'s device maps.
@@ -349,7 +416,7 @@ class WindowsHardwareMonitorAdapter:
                 derived=False,
                 requires_consent=False,
                 requires_elevation=elevated,
-                source=(_SOURCE_QUALIFIER,),
+                source=(_source_qualifier_for(record),),
                 vendor=None,
                 part_number=None,
                 availability=availability,

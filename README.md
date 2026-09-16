@@ -7,7 +7,7 @@ motion, battery, radios, and (on Windows, via a bundled helper) hardware
 telemetry, and reads every one of them through the same small API. It's the
 layer you build a sensor toy on top of, not the toy itself.
 
-**[sensortap.baselashraf.com](https://sensortap.baselashraf.com)** · Windows
+**[baselashraf.com/sensortap](https://baselashraf.com/sensortap/)** · Windows
 today, Linux planned · Free and open source, [MIT](LICENSE)
 
 ## Why
@@ -33,8 +33,8 @@ sensortap list
 ```
 
 That's it for camera, microphone, motion, battery, and radio sensors.
-Hardware-monitor sensors (per-core CPU load, temperatures, voltages, clock
-speeds) need the optional extra, which pulls in a bundled .NET helper:
+Hardware-monitor sensors (per-core CPU load, temperatures, voltages, power,
+clock speeds) need the optional extra, which pulls in a bundled .NET helper:
 
 ```sh
 pip install "sensortap[hwmon]"
@@ -46,8 +46,30 @@ memory:
 ```
 $ sensortap list
 ...
-total sensors: 86  kinds: 16  backends contributing: 10  non-contributing: 0
+total sensors: 91  kinds: 16  backends contributing: 10  non-contributing: 0
 ```
+
+### Going deeper: motherboard and EC sensors
+
+Board temperatures, fan tachometers and extra voltage rails live behind
+motherboard/Super-IO/embedded-controller access, which is **off by default**:
+
+```sh
+sensortap list --include-motherboard
+```
+
+It is opt-in because that path can conflict with a vendor tool or another
+monitoring app (HWiNFO, OEM fan control) already holding the same EC
+registers, and an unrecognised Super-IO chip can return plausible-looking
+nonsense rather than an obvious failure. sensortap still never installs or
+starts a kernel driver; on a machine with no Ring0 driver present and no
+recognised Super-IO chip, this flag safely finds nothing extra (that is the
+case on the G3 3779 above). On a desktop board with a standard Nuvoton or
+ITE chip there is usually much more to find.
+
+Sensors that only appear because of this opt-in carry `hwmon-mb` in their
+id instead of `hwmon`, so a pasted id records which capability set produced
+it.
 
 ## Use it
 
@@ -94,7 +116,7 @@ Nine adapters ship today, all against real hardware:
 | `win_battery` | Charge percentage, capacity, charge rate |
 | `win_radio` | Wi-Fi signal, Bluetooth presence |
 | `win_touchpad` | Touch-pointer presence, contact count, capacitive image (consent-gated) |
-| `hwmon_bridge` | CPU/GPU/board temperature, fan, voltage, current, power, clock, load, via a bundled .NET helper wrapping LibreHardwareMonitor |
+| `hwmon_bridge` | CPU/GPU/board temperature, fan, voltage, current, power, clock, load, via a bundled .NET helper wrapping LibreHardwareMonitor. Board/Super-IO/EC sensors behind `--include-motherboard` |
 
 ## Adding a sensor
 
@@ -140,7 +162,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-193 tests, none requiring physical sensor hardware in the default run. See
+197 tests, none requiring physical sensor hardware in the default run. See
 [docs/contributing/adapter-guide.md](docs/contributing/adapter-guide.md) for
 writing a new adapter and [docs/schema.md](docs/schema.md) for the schema
 reference, generated straight from the code.

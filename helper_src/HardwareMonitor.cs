@@ -36,11 +36,15 @@ namespace SensortapHelper;
 ///      sensors (many CPU package/core temps via defined MSRs, GPU sensors
 ///      via vendor APIs, storage SMART, memory) do not require it on most
 ///      hardware.
-///   2. This helper deliberately enables the *minimum* hardware groups
-///      needed for temperature/fan/voltage/clock/load coverage and leaves
-///      IsMotherboardEnabled = false by default, since motherboard/Super-IO
+///   2. This helper enables the *minimum* hardware groups needed for
+///      temperature/fan/voltage/clock/load/power/current coverage and leaves
+///      IsMotherboardEnabled = false BY DEFAULT, since motherboard/Super-IO
 ///      access is the group most likely to trigger Ring0 driver loading
-///      for embedded-controller and Super-IO chip reads.
+///      for embedded-controller and Super-IO chip reads. It can be turned
+///      on per-process by the caller via the constructor's
+///      `enableMotherboard` parameter (surfaced all the way up as
+///      sensortap's `--include-motherboard` CLI flag), which is an explicit
+///      user opt-in, never a default.
 ///   3. Ring0 acquisition in LibreHardwareMonitorLib, when triggered, will
 ///      use an ALREADY-INSTALLED/registered driver service if one exists
 ///      under its expected service name, and otherwise attempts to install
@@ -80,18 +84,55 @@ public sealed class HardwareMonitor : IDisposable
         SensorType.Voltage,
         SensorType.Clock,
         SensorType.Load,
+        // Power and Current were mapped on the Python side
+        // (hwmon_bridge._SENSOR_TYPE_TO_KIND) from the start but were
+        // missing from this set, so every power and current sensor the
+        // library reports was silently dropped before reaching the
+        // registry. Both map to closed-vocabulary kinds ("power", "current")
+        // and need no elevation beyond what the CPU/GPU groups already use.
+        SensorType.Power,
+        SensorType.Current,
     };
 
     private readonly Computer _computer;
     private readonly UpdateVisitor _updateVisitor = new();
     private bool _opened;
 
-    public HardwareMonitor()
+    /// <summary>
+    /// Whether motherboard/Super-IO monitoring was enabled for this
+    /// instance. Exposed so the caller can report which capability set the
+    /// enumeration actually ran under, rather than inferring it.
+    /// </summary>
+    public bool MotherboardEnabled { get; }
+
+    /// <param name="enableMotherboard">
+    /// Opt in to motherboard, Super-IO and embedded-controller monitoring.
+    ///
+    /// OFF BY DEFAULT, deliberately. This is the one hardware group whose
+    /// access path inside LibreHardwareMonitorLib can reach the Ring0
+    /// (WinRing0) kernel driver and vendor embedded-controller registers.
+    /// Turning it on typically adds board temperatures, fan tachometers and
+    /// extra voltage rails, which is exactly why it exists as an option,
+    /// but it carries real risks this project will not take on a user's
+    /// behalf without them asking:
+    ///
+    ///   - the library may attempt to install/start a kernel driver, which
+    ///     sensortap's own contract (Req 15.5) says it must never do
+    ///     silently;
+    ///   - EC register reads can conflict with a vendor tool or another
+    ///     monitoring app (HWiNFO, OEM fan control) already holding the
+    ///     same registers, and on some laptops that wedges the EC;
+    ///   - values from an unrecognised Super-IO chip can be plausible-looking
+    ///     nonsense rather than an obvious failure.
+    ///
+    /// The caller (Python's HelperClient) only passes true when the user
+    /// explicitly opted in, and the resulting sensors are labelled so the
+    /// provenance is visible downstream.
+    /// </param>
+    public HardwareMonitor(bool enableMotherboard = false)
     {
-        // Only enable hardware groups that commonly expose our five wanted
-        // SensorTypes without requiring the library's Ring0 driver-install
-        // path. See the class-level comment above for the reasoning and
-        // the follow-up verification this needs.
+        MotherboardEnabled = enableMotherboard;
+
         _computer = new Computer
         {
             IsCpuEnabled = true,
@@ -99,8 +140,11 @@ public sealed class HardwareMonitor : IDisposable
             IsMemoryEnabled = true,
             IsStorageEnabled = true,
             IsNetworkEnabled = false,
-            IsMotherboardEnabled = false, // deliberately off -- see class doc
-            IsControllerEnabled = false,
+            IsMotherboardEnabled = enableMotherboard,
+            // Super-IO/EC sensors surface through the controller group on
+            // some boards, so it follows the same opt-in rather than
+            // sitting behind a second, separate flag the user cannot see.
+            IsControllerEnabled = enableMotherboard,
             IsBatteryEnabled = false,
             IsPsuEnabled = false,
         };

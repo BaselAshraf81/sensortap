@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 import sys
 from typing import Sequence
 
@@ -105,6 +106,17 @@ def _add_global_options(parser: argparse.ArgumentParser) -> None:
         help="include sensors requiring elevation",
     )
     parser.add_argument(
+        "--include-motherboard",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help=(
+            "opt in to motherboard, Super-IO and embedded-controller sensors "
+            "(board temps, fan tachometers, extra voltage rails). Off by "
+            "default: this path can conflict with a vendor tool or another "
+            "monitoring app holding the same EC registers"
+        ),
+    )
+    parser.add_argument(
         "--discovery-timeout",
         type=int,
         default=argparse.SUPPRESS,
@@ -128,7 +140,12 @@ def _build_parser() -> argparse.ArgumentParser:
     # Set the real defaults once, on the top-level namespace, before any
     # subparser (whose options are SUPPRESSed) gets a chance to merge in.
     parser.set_defaults(
-        json=False, consent=None, include_elevated=False, discovery_timeout=None, duration=None
+        json=False,
+        consent=None,
+        include_elevated=False,
+        include_motherboard=False,
+        discovery_timeout=None,
+        duration=None,
     )
     _add_global_options(parser)
     subparsers = parser.add_subparsers(dest="command", required=False)
@@ -329,6 +346,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     out = io.StringIO()
     try:
+        # Must be set before Registry() constructs adapters: the
+        # hardware-monitor adapter reads this in its __init__ to decide
+        # whether to launch its helper with motherboard/EC monitoring on
+        # (see adapters/windows/hwmon_bridge.MOTHERBOARD_OPTIN_ENV_VAR for
+        # why the opt-in travels by environment variable rather than through
+        # a registry config channel that does not exist).
+        if args.include_motherboard:
+            # Imported lazily: `sensortap.adapters.windows` is platform-gated
+            # and does not import on Linux, but this flag must still parse and
+            # run there (where it is simply a no-op, since no adapter reads
+            # it) rather than crashing the whole CLI.
+            try:
+                from sensortap.adapters.windows.hwmon_bridge import (
+                    MOTHERBOARD_OPTIN_ENV_VAR,
+                )
+
+                os.environ[MOTHERBOARD_OPTIN_ENV_VAR] = "1"
+            except ImportError:
+                pass
+
         registry_kwargs: dict = {"include_elevated": args.include_elevated}
         if args.discovery_timeout is not None:
             registry_kwargs["discovery_timeout_ms"] = args.discovery_timeout
