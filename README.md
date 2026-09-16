@@ -49,6 +49,23 @@ $ sensortap list
 total sensors: 91  kinds: 16  backends contributing: 10  non-contributing: 0
 ```
 
+### Admin rights change what the hardware monitor can see
+
+Running `sensortap list` unelevated vs. from an elevated (Administrator)
+terminal can report a genuinely different sensor count for `hwmon_bridge`,
+with no error and no listed reason. CPU MSR temperature/clock reads and
+storage SMART reads both silently return fewer sensors without admin
+rights; LibreHardwareMonitor doesn't fail loudly, it just reports less.
+Confirmed on real hardware: 50 vs. 70 `hwmon_bridge` sensors on the same
+machine, same run parameters, differing only by elevation.
+
+`sensortap list` now surfaces this: when `hwmon_bridge` loaded and the
+current process is not elevated, the plain-text output prints a one-line
+note after the summary, and `--json`'s `summary.elevated` field reports
+the same fact structurally. sensortap never requests elevation itself and
+never triggers a UAC prompt; re-running from an elevated terminal is the
+user's call, not something this tool does on your behalf.
+
 ### Going deeper: motherboard and EC sensors
 
 Board temperatures, fan tachometers and extra voltage rails live behind

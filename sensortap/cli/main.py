@@ -181,17 +181,25 @@ def _usage_text(parser: argparse.ArgumentParser) -> str:
 
 
 def _build_list_summary(sensors, backend_status) -> dict:
-    """Total sensor count, distinct `kind` count, and contributing
-    (``state == "loaded"``) vs non-contributing backend counts (Req 12.7).
+    """Total sensor count, distinct `kind` count, contributing
+    (``state == "loaded"``) vs non-contributing backend counts (Req 12.7),
+    and whether the current process is elevated -- surfaced structurally
+    here (not only as the plain-text hint) so a scripted `--json` caller
+    can also tell why a rerun with admin rights might report a different
+    count, without scraping stderr or a human-facing note string.
     """
     distinct_kinds = {s.kind for s in sensors}
     contributing = sum(1 for b in backend_status if b.state == "loaded")
     non_contributing = len(backend_status) - contributing
+
+    from sensortap.registry.privilege import is_elevated
+
     return {
         "total_sensors": len(sensors),
         "distinct_kinds": len(distinct_kinds),
         "contributing_backends": contributing,
         "non_contributing_backends": non_contributing,
+        "elevated": is_elevated(),
     }
 
 
@@ -201,6 +209,45 @@ def _format_backend_status_line(status) -> str:
     if reason is not None:
         parts.append(f"reason={reason.value}")
     return "  ".join(parts)
+
+
+#: Adapters whose live sensor count is known to differ under Windows
+#: process elevation (Req 8.6/8.7's elevation detection exists precisely
+#: for this: `is_elevated()` was implemented but never called from the
+#: CLI, so a user running unelevated had no way to learn that CPU MSR
+#: temperature/clock reads and storage SMART reads both silently degrade
+#: to fewer sensors -- not an error, not a listed reason, just a smaller
+#: number with no explanation. Confirmed live: 50 hwmon sensors
+#: unelevated vs. 70 elevated on the same machine, same run). Kept as a
+#: named set rather than a blanket "not elevated" banner, since most
+#: adapters (WinRT motion, battery, radio, touchpad) are unaffected by
+#: elevation and a banner shown regardless of relevance would train users
+#: to ignore it.
+_ELEVATION_SENSITIVE_ADAPTER_IDS = frozenset({"hwmon_bridge"})
+
+
+def _elevation_hint(backend_status) -> str | None:
+    """One line noting that running elevated may surface more sensors,
+    shown only when it is actually true for this run: an
+    elevation-sensitive adapter loaded, and the current process is not
+    elevated. Never triggers a UAC prompt itself (Req 8.6) -- this is
+    information, not an action.
+    """
+
+    if not any(b.adapter_id in _ELEVATION_SENSITIVE_ADAPTER_IDS for b in backend_status):
+        return None
+
+    from sensortap.registry.privilege import is_elevated
+
+    if is_elevated():
+        return None
+
+    return (
+        "note: not running elevated. CPU temperature/clock reads and storage "
+        "health reads can silently return fewer sensors without admin rights, "
+        "with no error and no listed reason. Re-run from an elevated terminal "
+        "to check whether more sensors appear."
+    )
 
 
 def _run_list(registry: Registry, args: argparse.Namespace, out: io.StringIO) -> None:
@@ -221,6 +268,9 @@ def _run_list(registry: Registry, args: argparse.Namespace, out: io.StringIO) ->
         f"backends contributing: {summary['contributing_backends']}  "
         f"non-contributing: {summary['non_contributing_backends']}\n"
     )
+    hint = _elevation_hint(backend_status)
+    if hint is not None:
+        out.write(f"\n{hint}\n")
 
 
 def _apply_consent(registry: Registry, args: argparse.Namespace) -> None:

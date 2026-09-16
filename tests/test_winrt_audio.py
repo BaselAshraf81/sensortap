@@ -16,6 +16,7 @@ import pytest
 from sensortap.adapters.windows.winrt_audio import WindowsAudioAdapter
 from sensortap.registry.errors import DeviceOpenError
 from sensortap.schema.enums import Availability, Dtype
+from sensortap.schema.validate import validate_sensor_info
 
 
 def test_discover_returns_schema_valid_buffer_records() -> None:
@@ -31,6 +32,22 @@ def test_discover_returns_schema_valid_buffer_records() -> None:
         assert len(info.shape) == 2
         assert info.availability in (Availability.PRESENT, Availability.PERMISSION_DENIED)
         assert info.schema_version
+
+
+def test_discover_records_pass_schema_validation() -> None:
+    """Regression: `_RATE_MAX_HZ` in `schema/validate.py` was 10000.0, but
+    real WASAPI capture rates (44100/48000 Hz) both exceed it. Every real
+    microphone was silently dropped from the registry's final output as a
+    result -- discover() itself never raised, and no reason was ever
+    surfaced anywhere a caller could see it. Confirmed live on real
+    hardware, not just in this synthetic check."""
+
+    adapter = WindowsAudioAdapter()
+    records = adapter.discover()
+
+    for record in records:
+        violations = validate_sensor_info(record, adapter_id="winrt_audio")
+        assert violations == [], f"{record.id}: {violations}"
 
 
 def test_discover_opens_no_device_handle() -> None:

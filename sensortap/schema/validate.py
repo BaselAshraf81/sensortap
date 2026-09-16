@@ -53,7 +53,15 @@ _NULLABLE_FIELDS: frozenset[str] = frozenset(
 )
 
 _RATE_MIN_HZ = 0.001
-_RATE_MAX_HZ = 10000.0
+#: Raised from 10000.0: real audio capture reports its actual device
+#: sample rate here (44100/48000 Hz WASAPI defaults, both above the old
+#: bound), which silently failed validation and dropped every microphone
+#: sensor from the registry's output on every machine, never surfacing as
+#: an error anywhere a caller could see it (Req 2.10 drops invalid records
+#: without raising). 192000 Hz covers WASAPI's common high-res audio rates
+#: with headroom; nothing else in the shipped adapters reports a rate
+#: anywhere near this high.
+_RATE_MAX_HZ = 192000.0
 _SHAPE_DIM_MIN = 1
 _SHAPE_DIM_MAX = 1_048_576
 _SHAPE_LEN_MIN = 1

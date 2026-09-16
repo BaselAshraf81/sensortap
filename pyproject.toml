@@ -9,7 +9,7 @@ description = "Cross-platform sensor discovery and raw-readings framework"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Basel Ashraf", url = "https://baselashraf.com" }]
+authors = [{ name = "Basel Ashraf" }]
 urls = { Homepage = "https://sensortap.baselashraf.com", Source = "https://github.com/BaselAshraf81/sensortap" }
 dependencies = [
     "winsdk>=1.0.0b10; sys_platform == 'win32'",

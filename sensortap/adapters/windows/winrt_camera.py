@@ -136,6 +136,18 @@ _IDLE_CLOSE_MS = 2000
 #: enumeration is deferred to first `read()`.
 _PLACEHOLDER_SHAPE = (1080, 1920)
 
+#: Channel names for the placeholder shape's columns (Req 2.7's
+#: channel-count rule: for a 2-dimensional shape, channel count must equal
+#: the shape's last dimension). This adapter originally declared
+#: `channels=()` against a 2D shape, which the schema validator's
+#: channel-count check rejects (it expects `len(channels) == shape[-1]`
+#: regardless of dtype) -- every camera sensor was silently dropped from
+#: the registry's output as a result, never surfacing as an error anywhere
+#: a caller could see it. Named generically, mirroring
+#: `win_touchpad.py`'s `_CAPACITIVE_IMAGE_CHANNELS`, since no real
+#: per-column semantics exist for an illustrative placeholder shape.
+_PLACEHOLDER_CHANNELS = tuple(f"col-{i}" for i in range(_PLACEHOLDER_SHAPE[-1]))
+
 
 class WindowsCameraAdapter:
     """Reports each WinRT-visible camera as one `buffer`-dtype sensor
@@ -200,7 +212,7 @@ class WindowsCameraAdapter:
                     kind=_KIND,
                     dtype=Dtype.BUFFER,
                     unit=None,
-                    channels=(),
+                    channels=_PLACEHOLDER_CHANNELS,
                     shape=_PLACEHOLDER_SHAPE,
                     range=None,
                     resolution=None,

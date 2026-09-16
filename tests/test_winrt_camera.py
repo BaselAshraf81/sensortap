@@ -17,6 +17,7 @@ from sensortap.adapters.protocol import ADAPTER_INTERFACE_VERSION
 from sensortap.adapters.windows import WINDOWS_PLATFORMS
 from sensortap.adapters.windows.winrt_camera import WindowsCameraAdapter
 from sensortap.schema.enums import Availability, Dtype
+from sensortap.schema.validate import validate_sensor_info
 
 
 def test_meta() -> None:
@@ -73,3 +74,21 @@ def test_read_unknown_sensor_id_raises_key_error() -> None:
 
     with pytest.raises(KeyError):
         adapter.read("nonexistent.sensor.id")
+
+
+def test_discover_records_pass_schema_validation() -> None:
+    """Regression: the placeholder shape (1080, 1920) was declared
+    against an empty `channels` tuple, which the validator's channel-count
+    rule (shape's last dimension must equal len(channels)) rejects. Every
+    camera sensor was silently dropped from the registry's final output
+    as a result -- discover() itself never raised, and no reason was ever
+    surfaced anywhere a caller could see it (Req 2.10 drops invalid
+    records without raising). Confirmed live on real hardware, not just
+    in this synthetic check."""
+
+    adapter = WindowsCameraAdapter()
+    records = adapter.discover()
+
+    for record in records:
+        violations = validate_sensor_info(record, adapter_id="winrt_camera")
+        assert violations == [], f"{record.id}: {violations}"

@@ -387,6 +387,28 @@ radio-signal.win-radio.0</code></pre>
         naming all four commands and exits with code <code>2</code>.
       </p>
 
+      <h3 id="cli-elevation">Admin rights change what the hardware monitor sees<a class="anchor" href="#cli-elevation" aria-label="Link to Admin rights change what the hardware monitor sees">#</a></h3>
+
+      <div class="note note--warn">
+        <span class="note__label">No error, no listed reason</span>
+        <p>
+          Running <code>sensortap list</code> unelevated vs. from an elevated (Administrator)
+          terminal can report a genuinely different <code>hwmon_bridge</code> sensor count. CPU
+          MSR temperature/clock reads and storage SMART reads both silently return fewer sensors
+          without admin rights; LibreHardwareMonitor doesn't fail loudly, it just reports less.
+          Confirmed on real hardware: 50 vs. 70 sensors on the same machine, same run
+          parameters, differing only by elevation.
+        </p>
+      </div>
+
+      <p>
+        <code>sensortap list</code> surfaces this: when <code>hwmon_bridge</code> loaded and the
+        current process is not elevated, the plain-text output prints a note after the summary
+        line, and <code>--json</code>'s <code>summary.elevated</code> field reports the same fact
+        structurally. sensortap never requests elevation itself and never triggers a UAC prompt;
+        re-running from an elevated terminal is the user's call.
+      </p>
+
       <h3 id="cli-motherboard">The motherboard opt-in<a class="anchor" href="#cli-motherboard" aria-label="Link to The motherboard opt-in">#</a></h3>
 
       <p>

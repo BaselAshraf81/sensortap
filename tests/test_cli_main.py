@@ -18,8 +18,10 @@ from sensortap.cli.main import (
     EXIT_UNKNOWN_SENSOR,
     EXIT_USAGE,
     _build_parser,
+    _elevation_hint,
     main,
 )
+from sensortap.registry.status import BackendStatus
 
 
 def _run_cli(argv, capsys):
@@ -174,6 +176,39 @@ def test_stream_privacy_sensitive_sensor_without_consent_fails(capsys):
     code, out, err = _run_cli(["stream", "microphone.reference.0"], capsys)
     assert code == EXIT_CONSENT
     assert out == ""
+
+
+def test_elevation_hint_absent_when_no_elevation_sensitive_adapter_loaded():
+    """Only hwmon_bridge's sensor count is known to differ under
+    elevation (CPU MSR temp/clock reads and storage SMART reads both
+    silently degrade without admin rights). A run with no such adapter
+    loaded has nothing this hint could be about."""
+    statuses = [BackendStatus(adapter_id="reference", state="loaded", discovered_count=4)]
+    assert _elevation_hint(statuses) is None
+
+
+def test_elevation_hint_present_when_hwmon_loaded_and_not_elevated(monkeypatch):
+    monkeypatch.setattr("sensortap.registry.privilege.is_elevated", lambda: False)
+    statuses = [BackendStatus(adapter_id="hwmon_bridge", state="loaded", discovered_count=50)]
+    hint = _elevation_hint(statuses)
+    assert hint is not None
+    assert "elevated" in hint.lower()
+
+
+def test_elevation_hint_absent_when_hwmon_loaded_and_already_elevated(monkeypatch):
+    monkeypatch.setattr("sensortap.registry.privilege.is_elevated", lambda: True)
+    statuses = [BackendStatus(adapter_id="hwmon_bridge", state="loaded", discovered_count=70)]
+    assert _elevation_hint(statuses) is None
+
+
+def test_list_json_summary_reports_elevation_state(capsys):
+    import json
+
+    code, out, err = _run_cli(["list", "--json"], capsys)
+    assert code == EXIT_SUCCESS
+    payload = json.loads(out)
+    assert "elevated" in payload["summary"]
+    assert isinstance(payload["summary"]["elevated"], bool)
 
 
 def test_read_privacy_sensitive_sensor_with_consent_succeeds(capsys):
