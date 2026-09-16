@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>sensortap: every sensor your computer has, one command</title>
+<meta name="description" content="sensortap discovers every sensor a computer has — camera, microphone, motion, battery, hardware telemetry — and reads them through one API. pip install sensortap && sensortap list. Free and open source, built for people who like linking sensors to UI and animation.">
+<link rel="canonical" href="https://sensortap.baselashraf.com/">
+<meta name="author" content="Basel Ashraf">
+<meta name="theme-color" content="#0a0d0f">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="sensortap">
+<meta property="og:title" content="sensortap: every sensor your computer has, one command">
+<meta property="og:description" content="One registry, every sensor. pip install sensortap && sensortap list prints every sensor a machine has — verified: 86 sensors, 16 kinds, on one ordinary laptop.">
+<meta property="og:url" content="https://sensortap.baselashraf.com/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:creator" content="@BaselAshraf81">
+<meta name="twitter:title" content="sensortap: every sensor your computer has, one command">
+<meta name="twitter:description" content="One registry, every sensor. Verified: 86 sensors, 16 kinds, on one ordinary laptop.">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "sensortap",
+  "url": "https://sensortap.baselashraf.com/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows 10 or later (Linux adapters planned)",
+  "description": "A cross-platform Python framework that discovers every sensor a computer has and exposes raw readings through one unified API. One registry, many independent adapters, no hardware-specific code required from the caller.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Basel Ashraf", "url": "https://baselashraf.com/" },
+  "codeRepository": "https://github.com/BaselAshraf81/sensortap",
+  "programmingLanguage": "Python"
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What does sensortap actually do?",
+      "acceptedAnswer": { "@type": "Answer", "text": "It discovers every sensor a computer has and reads them through one API. Camera, microphone, motion, light, battery, Wi-Fi and Bluetooth radios, touchpad, and, on Windows, hardware telemetry (per-core CPU load, temperatures, voltages, clock speeds) through a bundled helper. One command, sensortap list, prints all of it." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is sensortap an app or a library?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Both. It ships a CLI (list, read, stream, inspect) and a Python API (sensortap.list_sensors(), .read(), .stream()). It's infrastructure: it does not build finished sensor apps for you, it makes building your own fast." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does reading my camera or microphone require permission?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Enumerating sensors never opens a device or triggers an OS prompt, even for a camera. Reading or streaming a camera, microphone, or touchpad capacitive sensor requires the calling code to explicitly grant consent for that exact sensor id first." }
+    },
+    {
+      "@type": "Question",
+      "name": "What platforms does sensortap support?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Windows today, with nine real adapters covering motion, orientation, light, camera, microphone, battery, radio, touchpad, and a bundled .NET helper for hardware telemetry. Linux adapters are designed into the architecture and open as a contribution." }
+    }
+  ]
+}
+</script>
+
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<!--
+  Google tag (gtag.js) — same Measurement ID as every other property on
+  baselashraf.com, so this subdomain lands in the same GA4 property and the
+  same sessions as the rest of the site.
+-->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GM71X3G33E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag("js", new Date());
+  gtag("config", "G-GM71X3G33E");
+</script>
+</head>
+<body>
+
+<a class="skip" href="#read">Skip to the explanation</a>
+
+<nav class="bar" aria-label="Site navigation">
+  <div class="bar__inner">
+    <a class="bar__name" href="https://baselashraf.com" rel="author">
+      Brought to you free by <strong>Basel Ashraf</strong>
+    </a>
+    <ul class="bar__links">
+      <li>
+        <a class="bar__link bar__link--primary" href="#install">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8"/><path d="M4.5 7.5 8 11l3.5-3.5"/><path d="M2.5 13.5h11"/></svg>
+          Install
+        </a>
+      </li>
+      <li>
+        <a class="bar__link" href="https://github.com/BaselAshraf81/sensortap">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 .8a7.2 7.2 0 0 0-2.28 14.03c.36.07.49-.16.49-.35v-1.24c-2 .44-2.42-.85-2.42-.85-.33-.83-.8-1.05-.8-1.05-.65-.45.05-.44.05-.44.72.05 1.1.74 1.1.74.64 1.1 1.68.78 2.09.6.06-.47.25-.79.46-.97-1.6-.18-3.28-.8-3.28-3.56 0-.79.28-1.43.74-1.94-.07-.18-.32-.91.07-1.9 0 0 .6-.19 1.97.74a6.85 6.85 0 0 1 3.59 0c1.37-.93 1.97-.74 1.97-.74.39.99.14 1.72.07 1.9.46.51.74 1.15.74 1.94 0 2.77-1.69 3.38-3.3 3.56.26.22.49.66.49 1.33v1.97c0 .19.13.42.5.35A7.2 7.2 0 0 0 8 .8Z"/></svg>
+          Source
+        </a>
+      </li>
+      <li class="bar__divider" aria-hidden="true"></li>
+      <li>
+        <a class="bar__link bar__link--icon" href="https://x.com/BaselAshraf81" rel="noopener" aria-label="Follow Basel Ashraf on X" title="Follow on X">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l10 10M13 3 3 13"/></svg>
+        </a>
+      </li>
+      <li>
+        <details class="drop">
+          <summary class="bar__link bar__link--dim">
+            More work
+            <svg class="icon drop__chevron" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5 8 10.5l4-4"/></svg>
+          </summary>
+          <div class="drop__menu drop__menu--right">
+            <a class="drop__option" href="https://winduo.baselashraf.com" rel="noopener">
+              <span class="drop__name">WinDuo</span>
+              <span class="drop__note">One sensor, one effect: the webcam becomes a hinge sensor.</span>
+            </a>
+            <a class="drop__option" href="https://roadwright.baselashraf.com" rel="noopener">
+              <span class="drop__name">Roadwright</span>
+              <span class="drop__note">Draw a wheel, see the road it needs to roll smoothly.</span>
+            </a>
+            <a class="drop__option" href="https://baselashraf.com" rel="noopener">
+              <span class="drop__name">Everything else</span>
+              <span class="drop__note">The rest of what I build, at baselashraf.com.</span>
+            </a>
+          </div>
+        </details>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="hero__grain" aria-hidden="true"></div>
+
+  <div class="hero__inner">
+    <div class="hero__say">
+      <p class="hero__kicker">for people who like tinkering with sensors</p>
+      <h1 class="wordmark">sensortap</h1>
+      <p class="lede">
+        One registry. Every sensor your machine has. <strong>sensortap</strong>
+        finds the camera, the motion sensors, the battery, the radios, and
+        the hardware telemetry, whatever is actually there, and reads every
+        one of them through the same small API.
+      </p>
+      <p class="lede lede--quiet">
+        It's the layer under a project like <a href="https://winduo.baselashraf.com">WinDuo</a>
+        or Mac&nbsp;Duo: one sensor turned into one effect, hand-wired to one
+        platform. sensortap makes the next ten ideas like that fast to
+        build, instead of a fresh reverse-engineering job every time.
+      </p>
+
+      <div class="actions">
+        <a class="button button--primary" href="#install">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8"/><path d="M4.5 7.5 8 11l3.5-3.5"/><path d="M2.5 13.5h11"/></svg>
+          Get sensortap
+        </a>
+        <a class="button" href="https://github.com/BaselAshraf81/sensortap" rel="noopener">
+          View source
+        </a>
+      </div>
+      <p class="fineprint">
+        Free and open source. Windows today, Linux adapters open as a
+        contribution. No account, no telemetry.
+      </p>
+    </div>
+
+    <!--
+      The hero artifact: real output from a real machine, not a mockup.
+      Captured verbatim from `sensortap list` on a Dell G3 3779 and
+      re-verified before publish. A curated slice of the real transcript
+      (one or two rows per kind, not all 52 load/clock rows) plus the exact
+      real summary line the CLI itself prints.
+    -->
+    <figure class="term" aria-label="Terminal output showing sensortap discovering 86 real sensors on a laptop, grouped by kind, with their availability.">
+      <div class="term__bar">
+        <span class="term__dot"></span><span class="term__dot"></span><span class="term__dot"></span>
+        <span class="term__title">tested on Dell G3 3779</span>
+      </div>
+      <pre class="term__body"><code><span class="term__prompt">$</span> pip install sensortap
+<span class="term__prompt">$</span> sensortap list
+<span class="term__row"><span class="term__id">accel.reference.0</span>          <span class="term__kind">accel</span>       m/s2   <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">accel.winrt.0</span>               <span class="term__kind">accel</span>       m/s2   <span class="term__absent">absent</span></span>
+<span class="term__row"><span class="term__id">battery.win-pct...</span>          <span class="term__kind">battery</span>     %      <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">clock.hwmon.08ba84...</span>       <span class="term__kind">clock</span>       MHz    <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">hinge-angle.winrt.0</span>         <span class="term__kind">hinge-angle</span> deg    <span class="term__absent">absent</span></span>
+<span class="term__row"><span class="term__id">load.hwmon.037e93...</span>        <span class="term__kind">load</span>        %      <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">microphone.reference.0</span>      <span class="term__kind">microphone</span>         <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">radio-signal.win-radio.0</span>    <span class="term__kind">radio-signal</span> %     <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">temp.hwmon.2aed454...</span>       <span class="term__kind">temp</span>        degC   <span class="term__present">present</span></span>
+<span class="term__row"><span class="term__id">voltage.hwmon.2da99...</span>      <span class="term__kind">voltage</span>     V      <span class="term__present">present</span></span>
+<span class="term__ellipsis">&hellip; 76 more rows</span>
+<span class="term__summary">total sensors: <strong>86</strong>  kinds: <strong>16</strong>  backends contributing: <strong>10</strong>  non-contributing: <strong>0</strong></span>
+<span class="term__prompt term__cursor">❯</span></code></pre>
+    </figure>
+  </div>
+</header>
+
+<main id="read">
+
+  <section class="bay bay--proof">
+    <div class="bay__wide">
+      <h2>That transcript is real</h2>
+      <p class="statement">
+        86 sensors. 16 kinds. 10 of 10 backends loaded, zero failing. Captured
+        from an ordinary laptop, a Dell G3 3779, by running the actual CLI.
+        Not written from memory, not a mockup, and re-run right before this
+        page was published.
+      </p>
+      <p>
+        Half of it is the obvious hardware: a camera, a microphone, a
+        battery, Wi&#8209;Fi and Bluetooth radios. The other half is the part
+        most owners have never seen surfaced anywhere on this exact machine:
+        a hinge&#8209;angle sensor, an inclinometer, per&#8209;core CPU load
+        for all eight logical cores, live die temperatures, individual power
+        rail voltages, and clock speeds. The last 65 of those arrive once
+        sensortap's bundled Windows helper is running, through the same
+        <code>sensortap list</code> call, no extra code.
+      </p>
+    </div>
+  </section>
+
+  <hr class="snap" aria-hidden="true">
+
+  <section class="bay">
+    <div class="bay__measure">
+      <h2>One registry, many adapters, none of them knowing about each other</h2>
+      <p>
+        A camera adapter and a hardware-telemetry adapter have nothing in
+        common as code: one talks to WinRT, the other spawns a bundled
+        .NET helper and reads LibreHardwareMonitor over a local pipe.
+        sensortap doesn't pretend otherwise. Each sensor family is one
+        adapter, one file, registered through a normal Python entry point.
+        The registry's job is narrow: load every adapter it finds, run
+        discovery concurrently with a shared timeout so one slow backend
+        can't stall the rest, de-duplicate and validate what comes back,
+        and hand you one flat, typed list.
+      </p>
+      <p>
+        Every sensor, regardless of source, reports the same shape: a
+        stable id, a <code>kind</code> from one closed vocabulary, a unit,
+        a sampling rate, and whether it's currently reachable. That's what
+        makes the CLI's one command work identically whether it's asking a
+        webcam or a voltage rail.
+      </p>
+    </div>
+
+    <figure class="plate">
+      <svg class="diagram" viewBox="0 0 320 220" role="img"
+           aria-label="A diagram showing one central registry connected to several independent adapters — camera, motion, battery, radio, and a Windows hardware-monitor helper — each unaware of the others.">
+        <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+          <line x1="160" y1="108" x2="70" y2="30"/>
+          <line x1="160" y1="108" x2="160" y2="20"/>
+          <line x1="160" y1="108" x2="250" y2="30"/>
+          <line x1="160" y1="108" x2="70" y2="188"/>
+          <line x1="160" y1="108" x2="250" y2="188"/>
+        </g>
+        <g>
+          <rect x="128" y="86" width="64" height="44" rx="6" fill="var(--bg-panel-raised)" stroke="var(--amber)" stroke-width="1.6"/>
+          <text x="160" y="112" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="var(--amber)">registry</text>
+        </g>
+        <g font-family="JetBrains Mono, monospace" font-size="9" fill="var(--ink-dim)">
+          <rect x="38" y="10" width="64" height="30" rx="5" fill="var(--bg-panel)" stroke="var(--line)"/>
+          <text x="70" y="29" text-anchor="middle">camera</text>
+          <rect x="128" y="2" width="64" height="30" rx="5" fill="var(--bg-panel)" stroke="var(--line)"/>
+          <text x="160" y="21" text-anchor="middle">motion</text>
+          <rect x="218" y="10" width="64" height="30" rx="5" fill="var(--bg-panel)" stroke="var(--line)"/>
+          <text x="250" y="29" text-anchor="middle">battery</text>
+          <rect x="38" y="168" width="64" height="30" rx="5" fill="var(--bg-panel)" stroke="var(--line)"/>
+          <text x="70" y="187" text-anchor="middle">radio</text>
+          <rect x="212" y="168" width="76" height="30" rx="5" fill="var(--bg-panel)" stroke="var(--line)"/>
+          <text x="250" y="182" text-anchor="middle">.NET helper</text>
+          <text x="250" y="193" text-anchor="middle" font-size="7" fill="var(--ink-faint)">hwmon</text>
+        </g>
+      </svg>
+      <figcaption>
+        Each adapter owns one sensor family and one backend. The registry
+        never imports an adapter's internals, it only calls the two
+        methods every adapter promises: discover, and read.
+      </figcaption>
+    </figure>
+  </section>
+
+  <hr class="snap" aria-hidden="true">
+
+  <section class="bay bay--quiet">
+    <div class="bay__wide">
+      <h2>Enumeration never opens a device</h2>
+      <p class="statement">
+        Listing sensors never turns on a camera light or triggers an OS
+        permission prompt, not even for the camera and microphone entries
+        in the list above.
+      </p>
+      <p>
+        Reading or streaming a camera, a microphone, or a touchpad's raw
+        capacitive image needs your code to name that exact sensor id in a
+        consent grant first. Grants live in memory only, are never written
+        to disk, and end automatically when your code is done with them.
+        Everything else, motion, battery, radios, hardware telemetry,
+        carries no personal information and needs no grant at all.
+      </p>
+    </div>
+  </section>
+
+  <hr class="snap" aria-hidden="true">
+
+  <section class="bay bay--stack" id="install">
+    <div class="bay__measure">
+      <h2>Two ways to use it</h2>
+      <p>
+        A CLI for looking, a Python API for building.
+      </p>
+    </div>
+
+    <ol class="steps">
+      <li class="step">
+        <p class="step__num" aria-hidden="true">1</p>
+        <div>
+          <h3>Look</h3>
+          <pre class="code-block"><code><span class="term__prompt">$</span> pip install sensortap
+<span class="term__prompt">$</span> sensortap list
+<span class="term__prompt">$</span> sensortap read accel.reference.0
+<span class="term__prompt">$</span> sensortap stream microphone.reference.0 --consent microphone.reference.0</code></pre>
+        </div>
+      </li>
+      <li class="step">
+        <p class="step__num" aria-hidden="true">2</p>
+        <div>
+          <h3>Build</h3>
+          <pre class="code-block"><code><span class="kw">import</span> sensortap
+
+<span class="cm"># enumerate — opens nothing, prompts nothing</span>
+sensors = sensortap.list_sensors()
+
+<span class="cm"># read a sensor that needs no consent</span>
+reading = sensortap.read(<span class="str">"accel.winrt.0"</span>)
+
+<span class="cm"># a privacy-sensitive sensor needs an explicit grant</span>
+<span class="kw">with</span> sensortap.consent([<span class="str">"microphone.winrt.0"</span>]):
+    <span class="kw">for</span> block <span class="kw">in</span> sensortap.stream(<span class="str">"microphone.winrt.0"</span>):
+        ...</code></pre>
+        </div>
+      </li>
+      <li class="step">
+        <p class="step__num" aria-hidden="true">3</p>
+        <div>
+          <h3>Contribute a sensor</h3>
+          <p>
+            One sensor family is one adapter file, registered through a
+            standard Python entry point &mdash; no edit to sensortap's own
+            source. A reusable Conformance_Check ships in the package
+            itself, so you can validate your adapter against the exact same
+            rules sensortap's own nine Windows adapters were checked
+            against, without needing sensortap's repository at all.
+          </p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <hr class="snap" aria-hidden="true">
+
+  <section class="bay bay--limits">
+    <div class="bay__measure">
+      <h2>What's real today, what isn't yet</h2>
+      <p>
+        A young, one-person project, stated plainly. No adoption numbers
+        exist to quote, so none are invented.
+      </p>
+    </div>
+
+    <dl class="limits">
+      <dt>Windows is where it's built out</dt>
+      <dd>
+        Nine adapters ship: WinRT motion, orientation, light, camera, and
+        microphone; battery; Wi&#8209;Fi and Bluetooth; touchpad; and a
+        bundled .NET helper bridging LibreHardwareMonitor for CPU, GPU,
+        and board telemetry. All nine run against real hardware, none of
+        them mocked.
+      </dd>
+
+      <dt>Linux is designed, not built</dt>
+      <dd>
+        The adapter interface and the registry are already
+        platform-neutral. Nothing in the core imports anything
+        Windows-specific. A Linux backend (sysfs hwmon, V4L2, ALSA, evdev)
+        is the clearest open contribution, and it's exactly the kind of
+        one-file-per-family task the adapter interface was built for.
+      </dd>
+
+      <dt>The hardware-telemetry helper is optional weight</dt>
+      <dd>
+        <code>pip install sensortap</code> alone stays small: motion,
+        camera, battery, and radio sensors all work with zero extra
+        downloads. Per-core CPU load, temperatures, and voltages need
+        <code>sensortap[hwmon]</code>, which pulls in a self-contained
+        .NET helper of a few dozen megabytes. That weight is disclosed, not
+        hidden in the base install.
+      </dd>
+
+      <dt>A sensor can be there and still say absent</dt>
+      <dd>
+        Several rows in the transcript above read <code>absent</code>.
+        That's honest, not a bug. A WinRT sensor class the operating
+        system doesn't expose reports absent rather than guessing whether
+        the physical chip exists underneath it. Reporting a wrong number
+        is worse than reporting none.
+      </dd>
+    </dl>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot__inner">
+    <p>
+      Built by <a href="https://baselashraf.com">Basel Ashraf</a>. Named in
+      the same lineage as <a href="https://winduo.baselashraf.com">WinDuo</a>
+      and <a href="https://roadwright.baselashraf.com">Roadwright</a>.
+    </p>
+    <p class="foot__fine">
+      Free and open source. No telemetry from sensortap itself &mdash;
+      this page's own analytics are Google Analytics, same as every other
+      baselashraf.com property.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

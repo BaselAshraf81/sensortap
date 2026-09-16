@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SensortapHelper</RootNamespace>
+    <AssemblyName>sensortap-helper</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Packaging notes (task 9.5 builds on this, not this task):
+      For the release artifact, publish self-contained, single-file, trimmed,
+      win-x64, per design.md's "Language and build" section:
+
+        dotnet publish -c Release -r win-x64 \
+          -p:PublishSingleFile=true \
+          -p:SelfContained=true \
+          -p:PublishTrimmed=true \
+          -p:IncludeNativeLibrariesForSelfExtract=true
+
+      That is expected to land in the ~15-25MB range referenced by the design
+      doc. Trimming a reflection-heavy library like LibreHardwareMonitorLib
+      can strip members it accesses dynamically; if trimming misbehaves,
+      drop PublishTrimmed and accept the larger single-file size, or add
+      explicit TrimmerRootAssembly entries for LibreHardwareMonitorLib.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Version pin: 0.9.3 is a real, published LibreHardwareMonitorLib NuGet
+      package version as of the library's public release history. This pin
+      has NOT been verified against a live NuGet feed in this environment
+      (no .NET SDK / network package restore was available here). Whoever
+      first runs `dotnet restore` on this project should confirm 0.9.3 still
+      resolves, or bump to the current latest 0.9.x release.
+    -->
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.3" />
+  </ItemGroup>
+
+</Project>

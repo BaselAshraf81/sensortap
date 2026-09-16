@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+helper_src/bin/
+helper_src/obj/
+helper_src/publish/
+sensortap/adapters/windows/helper/bin/*.exe
+.vs/

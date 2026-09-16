@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sensortap"
+version = "0.1.0"
+description = "Cross-platform sensor discovery and raw-readings framework"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Basel Ashraf", url = "https://baselashraf.com" }]
+urls = { Homepage = "https://sensortap.baselashraf.com", Source = "https://github.com/BaselAshraf81/sensortap" }
+dependencies = [
+    "winsdk>=1.0.0b10; sys_platform == 'win32'",
+]
+
+[project.scripts]
+sensortap = "sensortap.cli.main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+]
+# Hardware_Monitor_Adapter support (task 8.1 decision): the .NET helper
+# executable and its pywin32-based named pipe client are an OPTIONAL
+# install, not part of the base wheel, so `pip install sensortap` stays
+# small and the CLI demo works with no .NET SDK / pywin32 present.
+hwmon = [
+    "pywin32>=306; sys_platform == 'win32'",
+]
+
+# Entry point group through which third-party packages register Adapters
+# without modifying the sensortap core (Req 10.4).
+[project.entry-points."sensortap.adapters"]
+reference = "sensortap.adapters.reference:ReferenceAdapter"
+winrt_motion = "sensortap.adapters.windows.winrt_motion:WindowsMotionAdapter"
+winrt_orientation = "sensortap.adapters.windows.winrt_orientation:WindowsOrientationAdapter"
+winrt_light = "sensortap.adapters.windows.winrt_light:WindowsLightAdapter"
+win_battery = "sensortap.adapters.windows.win_battery:WindowsBatteryAdapter"
+win_radio = "sensortap.adapters.windows.win_radio:WindowsRadioAdapter"
+win_touchpad = "sensortap.adapters.windows.win_touchpad:WindowsTouchpadAdapter"
+winrt_camera = "sensortap.adapters.windows.winrt_camera:WindowsCameraAdapter"
+winrt_audio = "sensortap.adapters.windows.winrt_audio:WindowsAudioAdapter"
+hwmon_bridge = "sensortap.adapters.windows.hwmon_bridge:WindowsHardwareMonitorAdapter"
+
+[tool.setuptools.packages.find]
+include = ["sensortap*"]
+
+# Bundles the built sensortap-helper.exe (task 9.5) into the wheel when it
+# is present, for users installing the `hwmon` extra. package_data uses a
+# glob so the build does NOT fail when the binary is absent (e.g. building
+# the pure-Python wheel/sdist on a machine with no .NET SDK) -- only
+# `list.md` matching zero files is fine, `*.exe` glob is tolerant of zero
+# matches too.
+[tool.setuptools.package-data]
+"sensortap.adapters.windows.helper" = ["bin/*.exe"]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: test requires physical sensor hardware and is excluded from the default run",
+]
+addopts = "-m \"not hardware\""
+testpaths = ["tests"]

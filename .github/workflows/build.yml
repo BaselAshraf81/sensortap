@@ -1,0 +1,82 @@
+name: Build
+
+# NOTE: This workflow has been written but NOT executed. It has not been
+# validated end-to-end on GitHub Actions from this sandbox (there is no
+# .NET SDK here, and CI cannot run in this environment). It is written to
+# the best of current knowledge of GitHub Actions / actions/setup-dotnet
+# syntax (task 9.5). Verify it on a real run before relying on it for
+# releases.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-helper-and-test:
+    # Windows-only runner: the helper is a Windows-only .NET executable, and
+    # this is also the only runner flavor where pywin32/winsdk are
+    # genuinely installable and testable (see note on the pytest step
+    # below).
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Command mirrors helper_src/README.md's "Release publish" section
+      # exactly (self-contained, single-file, trimmed win-x64 build).
+      - name: Publish sensortap-helper.exe
+        working-directory: helper_src
+        run: >
+          dotnet publish -c Release -r win-x64
+          -p:PublishSingleFile=true
+          -p:SelfContained=true
+          -p:PublishTrimmed=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/
+
+      - name: Place published helper binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path adapters/windows/helper/bin | Out-Null
+          Copy-Item -Force helper_src/publish/sensortap-helper.exe adapters/windows/helper/bin/sensortap-helper.exe
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Installs the hwmon extra too so pywin32 (needed for the named pipe
+      # client, task 9.3) is present on this runner. This is the one place
+      # in the whole pipeline where pywin32- and winsdk-dependent code paths
+      # get real, complete verification -- in the sandbox used to write
+      # this feature, those tests could only be partially verified because
+      # no Windows machine with the SDKs installed was available.
+      - name: Install project (dev + hwmon extras)
+        run: pip install -e ".[dev,hwmon]"
+
+      - name: Run test suite
+        run: pytest
+
+  # Packaging sanity check: confirms the sdist/wheel build succeeds with no
+  # .NET SDK and no built helper binary present, on a plain Linux runner.
+  # This complements the local verification already done in this task
+  # (see task notes) by re-checking it on a clean checkout in CI.
+  packaging-sanity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          pip install build
+          python -m build
