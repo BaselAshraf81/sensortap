@@ -333,6 +333,15 @@ grammar validation, existence against the most recent enumeration, consent,
 then dtype. Adapter errors are not swallowed; they propagate to the caller
 unchanged.
 
+**Enumerate before you read.** "The most recent enumeration" means there has to
+*be* one. `read()` never discovers implicitly — that would hide a concurrent
+sweep of every adapter, under a multi-second timeout, inside what looks like a
+single-sensor call. So on a fresh process, call `list_sensors()` (or
+`Registry.list_sensors()`) first; a bare `read()` raises `UnknownSensorError`
+for an id that genuinely exists. The CLI does this enumeration for you, which
+is why `sensortap read <id>` works as a one-liner and the Python equivalent
+needs two.
+
 Raises `MalformedSensorIdError`, `UnknownSensorError`, `ConsentError`, or
 `BlockPathRequiredError`. A rejected read never consumes a `seq` value.
 
@@ -717,10 +726,21 @@ Nine Windows adapters, all run against real hardware.
 | `hwmon_bridge` | `temp`, `fan`, `voltage`, `current`, `power`, `clock`, `load` | Bundled .NET helper wrapping LibreHardwareMonitor. Board/Super-IO/EC sensors behind `--include-motherboard`. |
 
 A tenth adapter, `reference`, ships as a synthetic contributor example. It
-requires no hardware and exposes one sensor per dtype, including deliberate
-edge cases: a stale-value path, a never-received-value path that always reads
-`unavailable`, a plain poll path, and a block/stream path. It is not a
-hardware sensor and its readings are not measurements.
+requires no hardware and exposes one sensor per dtype, each demonstrating a
+different path an adapter has to get right. It is not hardware and its
+readings are not measurements.
+
+| Sensor | Demonstrates |
+| --- | --- |
+| `temp.reference.0` | The normal push path, plus the stale-value rule: `read()` reports `stale` rather than passing off an old value as `ok`. The one to use when you want an example that returns a number. |
+| `accel.reference.0` | The never-received-a-value path. It is `present` and it *deliberately never produces a sample*, so `read()` returns immediately with `status = unavailable` and empty `values` instead of blocking forever. This is the fixture working correctly, not a broken sensor. |
+| `touchpad.reference.0` | The plain synchronous poll path. |
+| `microphone.reference.0` | The block/stream path; `buffer` dtype, so `stream()` only. |
+
+`accel.reference.0` is worth knowing about before you meet it: a sensor that is
+`present` but reads `unavailable` looks like a bug and is not one. That
+combination is legal and load-bearing across the whole project — a device can
+exist while a current value does not.
 
 ### Helper process security
 

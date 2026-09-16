@@ -94,7 +94,7 @@ it.
 
 ```sh
 sensortap list
-sensortap read accel.reference.0
+sensortap read temp.reference.0
 sensortap inspect temp.hwmon.2aed4545974396bc
 sensortap stream microphone.reference.0 --consent microphone.reference.0
 sensortap doctor
@@ -105,8 +105,8 @@ sensortap doctor
 ```python
 import sensortap
 
-sensors = sensortap.list_sensors()          # never opens a device, never prompts
-reading = sensortap.read("accel.winrt.0")     # no consent needed, motion carries no personal data
+sensors = sensortap.list_sensors()            # never opens a device, never prompts
+reading = sensortap.read("temp.reference.0")  # reference adapter always loads, so this works anywhere
 
 with sensortap.consent(["microphone.winrt.0"]):   # camera/mic/touchpad-image need this
     for block in sensortap.stream("microphone.winrt.0"):

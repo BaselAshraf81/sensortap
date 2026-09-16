@@ -594,6 +594,15 @@ reading = sensortap.read(<span class="tok-s">"temp.hwmon.2aed4545974396bc"</span
         then dtype. Adapter errors are not swallowed; they propagate unchanged.
       </p>
       <p>
+        <b>Enumerate before you read.</b> "The most recent enumeration" means there has to
+        <em>be</em> one. <code>read()</code> never discovers implicitly — that would hide a
+        concurrent sweep of every adapter, under a multi-second timeout, inside what looks like
+        a single-sensor call. So on a fresh process call <code>list_sensors()</code> first; a
+        bare <code>read()</code> raises <code>UnknownSensorError</code> for an id that genuinely
+        exists. The CLI enumerates for you, which is why <code>sensortap read &lt;id&gt;</code>
+        works as a one-liner and the Python equivalent needs two.
+      </p>
+      <p>
         Raises <code>MalformedSensorIdError</code>, <code>UnknownSensorError</code>,
         <code>ConsentError</code>, or <code>BlockPathRequiredError</code>. A rejected read never
         consumes a <code>seq</code> value.
@@ -1086,11 +1095,26 @@ keystroke-timing   radio-signal       humidity           pressure</code></pre>
         <span class="note__label">Not hardware</span>
         <p>
           A tenth adapter, <code>reference</code>, ships as a synthetic contributor example. It
-          requires no hardware and exposes one sensor per dtype, including deliberate edge
-          cases: a stale-value path, a never-received-value path that always reads
-          <code>unavailable</code>, a plain poll path, and a block/stream path.
-          <code>accel.reference.0</code> in particular never produces a sample by design, so it
-          always reads <code>unavailable</code>. Its readings are not measurements.
+          requires no hardware and exposes one sensor per dtype, each demonstrating a different
+          path an adapter has to get right. It is not hardware and its readings are not
+          measurements.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Sensor</th><th>Demonstrates</th></tr></thead>
+            <tbody>
+              <tr><td><code>temp.reference.0</code></td><td>The normal push path, plus the stale-value rule: <code>read()</code> reports <code>stale</code> rather than passing off an old value as <code>ok</code>. The one to use when you want an example that returns a number.</td></tr>
+              <tr><td><code>accel.reference.0</code></td><td>The never-received-a-value path. It is <code>present</code> and <em>deliberately never produces a sample</em>, so <code>read()</code> returns immediately with <code>status = unavailable</code> and empty <code>values</code> instead of blocking forever. The fixture working correctly, not a broken sensor.</td></tr>
+              <tr><td><code>touchpad.reference.0</code></td><td>The plain synchronous poll path.</td></tr>
+              <tr><td><code>microphone.reference.0</code></td><td>The block/stream path; <code>buffer</code> dtype, so <code>stream()</code> only.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Worth knowing before you meet it: a sensor that is <code>present</code> but reads
+          <code>unavailable</code> looks like a bug and is not one. That combination is legal
+          and load-bearing across the whole project — a device can exist while a current value
+          does not.
         </p>
       </div>
 
